@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	randReader io.Reader        = rand.Reader
-	now        func() time.Time = time.Now
+	randReader io.Reader = rand.Reader
+	now                  = time.Now
 )
 
 // SignOptions is used to configure Sign. Domain and Signer are mandatory.
