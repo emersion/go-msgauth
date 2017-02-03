@@ -20,21 +20,32 @@ var (
 	now        func() time.Time = time.Now
 )
 
-type Options struct {
-	Domain   string
+// SignOptions is used to configure Sign.
+type SignOptions struct {
+	// The SDID claiming responsibility for an introduction of a message into the
+	// mail stream. Hence, the SDID value is used to form the query for the public
+	// key. The SDID MUST correspond to a valid DNS name under which the DKIM key
+	// record is published.
+	Domain string
+	// The selector subdividing the namespace for the domain.
 	Selector string
 
+	// The key used to sign the message.
 	Signer crypto.Signer
+	// The hash algorithm used to sign the message.
+	Hash crypto.Hash
 
+	// Header and body canonicalization algorithms.
 	HeaderCanonicalization string
 	BodyCanonicalization   string
 
-	Hash crypto.Hash
-
+	// A list of header fields to include in the signature. If nil, all headers
+	// will be included.
 	HeaderKeys []string
 }
 
-func Sign(w io.Writer, r io.Reader, options *Options) error {
+// Sign signs a message. It reads it from r and writes the signed version to w.
+func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	if options == nil {
 		return fmt.Errorf("dkim: no options specified")
 	}
@@ -174,7 +185,7 @@ func formatSignature(params map[string]string) string {
 	return "DKIM-Signature: " + formatHeaderParams(params) + crlf
 }
 
-func signHash(h hash.Hash, signer crypto.Signer, options *Options) (string, error) {
+func signHash(h hash.Hash, signer crypto.Signer, options *SignOptions) (string, error) {
 	sum := h.Sum(nil)
 	signature, err := signer.Sign(randReader, sum, options.Hash)
 	if err != nil {
