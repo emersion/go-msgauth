@@ -20,7 +20,7 @@ var (
 	now        func() time.Time = time.Now
 )
 
-// SignOptions is used to configure Sign.
+// SignOptions is used to configure Sign. Domain and Signer are mandatory.
 type SignOptions struct {
 	// The SDID claiming responsibility for an introduction of a message into the
 	// mail stream. Hence, the SDID value is used to form the query for the public
