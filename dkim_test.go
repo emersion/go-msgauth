@@ -1,0 +1,49 @@
+package dkim
+
+import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+)
+
+const testPrivateKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEAwYfiKwbEcMp6SWewvnNEB1I5WGlUnFH/2pu0zes5xTPgAqF3
+n5bwDSNvZmhPboclPCvfcq12ewaQNYubxbp36GFiUsynVhbjdA0PSZ8Wb3U30JfS
+wH50xjnnIGfADa7s7RlfPlUIFSoMt0YKFjfng/1SbKgToHhXONhVpyukgrXNaYW1
+Xnw5JXF7KyOi8YoPwquaIZtCsnyzUxfLFJ9ci0pUOtPkJuNmH6gQUuNoMqa6q3y7
+A0RTQKqxmQy+95QNrKOlJ3G+KFyY/kwX4KvebMM5kin4r1TfSNTMzkD/bffVSHqd
+iyKm7GHrp/maPMUus6P01QqtyCzjMr7TtbX2+QIDAQABAoIBAHtYyfO2anmg83PZ
+nLKl8JPh+h65c232bWW9m+0qoTVpLLtAgme64eDd1uCkVwwRItBI/i+vEzayJjOa
+eXv6rvXzK6GuQnECQZHzyOyZcskzIpHWUkLR1keJHCBxP9z4wpUTeLrXo0Ep/dTJ
+1R/4HZzoViJetbOvP5hBecYEcOPFM/tU1bz2lIBE5GAK3FWzAOKmkfLnAPUi96Il
+aTpHeJ0hsIv6jm7dyEY0Elvj/jy3Eh9O7t9WOIthLdQjDyG4f1Ws3alO1PlFqrCA
+nsEdB4iQBjAM2wkavsKav+v/r79dCI00vjtjY6cm80pkQc+X0J3z69fuR/sIBOnv
+UrcbVwkCgYEA5Xl6yURjU3zOS9SGBDt5bw61Q1qIbWa47f/4b09vRmHA2u0rUEGb
+at4RMTPTgak4VjPGan8slK1xxquemGPBDniLwhY3ExMJ22Cv022NZ/3FC9G6gkwy
+eenDXqnoukYdOJUITikFNwD9EqpYTTJL2bpKX2R1bOs/q7aowzOQF08CgYEA1+bF
+WpS4aJbX1vFr8AZRzD59HrCpLGwQYEdJmh1ERPVEy+Wog49OF007YJxhtPy+IqE1
+vlFjfCELYrNfcjCWxNHJPwwaO6L0s1riX4dCcm2GUb1T7NtxrdFZRNEnpVKHtuf/
+ym+/bWD9Wp5wuQsmgYtJH39/8B03vkgmN00SezcCgYAvIEKSIORRGfl34z5ekiQ/
+JYMeQPJxnT3vSrkniuWsS5kCnOBfTAnx6YcYVq9iGnGCaoGeD14FbpVGGqqoWxwj
+r6fsBQnsdeV5UyLoxb/bkmcsJTcrWSContRLlZNA5fNMUnbxLkVu5VoTwj3+JI0l
+OrfZXVUsOCfMSOfhpq45ywKBgDddYGKYHKoFdJgUFN/aXwOHSsKh/t/7Xj+ySDeT
+JbyhQOEgpZQHHblv/rgJoiytW3y55nRFnsNoHelTojhAKYmTWo4mZlvAsAuGVOK2
+Zt29JGK1sF3e8Enok4HIOOh2P4Mx/zBEc8xywMWKN9HcACXcOAYxxfcnJvJOwi4Q
+P5sFAoGAHBFo9hZWJl5VX88PB5zNTu+cw8jUTjeLBq9dvEdmGGHPSyKvH/QI0+La
+Eqw6Eecg3d1d4Tyhp70w/5m7m86ImffjEwLDAoKJ9CRbQIwJFz6LQyRHG0LURSiX
+4lTsTxa8WRNjPeCmM3UFjh3+i3XDwk31tXdxI7C1rMElnrrZToc=
+-----END RSA PRIVATE KEY-----
+`
+
+var (
+	testPrivateKey *rsa.PrivateKey
+)
+
+func init() {
+	block, _ := pem.Decode([]byte(testPrivateKeyPEM))
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	testPrivateKey = key
+}

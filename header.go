@@ -3,18 +3,24 @@ package dkim
 import (
 	"bufio"
 	"io"
+	"net/textproto"
+	"sort"
+	"strings"
 )
 
 const crlf = "\r\n"
 
 type header []string
 
-func readHeader(r io.Reader) (header, error) {
-	s := bufio.NewScanner(r)
+func readHeader(r *bufio.Reader) (header, error) {
+	tr := textproto.NewReader(r)
 
 	var h header
-	for s.Scan() {
-		l := s.Text()
+	for {
+		l, err := tr.ReadLine()
+		if err != nil {
+			return h, err
+		}
 
 		if len(l) == 0 {
 			break
@@ -26,5 +32,43 @@ func readHeader(r io.Reader) (header, error) {
 		}
 	}
 
-	return h, s.Err()
+	return h, nil
+}
+
+func writeHeader(w io.Writer, h header) error {
+	for _, kv := range h {
+		if _, err := w.Write([]byte(kv)); err != nil {
+			return err
+		}
+	}
+	_, err := w.Write([]byte(crlf))
+	return err
+}
+
+func headerKey(s string) string {
+	kv := strings.SplitN(s, ":", 2)
+	return strings.TrimSpace(kv[0])
+}
+
+func formatHeaderParams(params map[string]string) string {
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var s string
+	first := true
+	for _, k := range keys {
+		v := params[k]
+
+		if first {
+			first = false
+		} else {
+			s += " "
+		}
+
+		s += k+"="+v+";"
+	}
+	return s
 }
