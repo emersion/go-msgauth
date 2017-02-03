@@ -33,7 +33,7 @@ func init() {
 
 func TestSign(t *testing.T) {
 	r := strings.NewReader(mailString)
-	options := &Options{
+	options := &SignOptions{
 		Domain: "example.org",
 		Signer: testPrivateKey,
 	}
