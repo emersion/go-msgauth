@@ -28,7 +28,7 @@ func readHeader(r *bufio.Reader) (header, error) {
 			// This is a continuation line
 			h[len(h)-1] += l + crlf
 		} else {
-			h = append(h, l + crlf)
+			h = append(h, l+crlf)
 		}
 	}
 
@@ -68,7 +68,7 @@ func formatHeaderParams(params map[string]string) string {
 			s += " "
 		}
 
-		s += k+"="+v+";"
+		s += k + "=" + v + ";"
 	}
 	return s
 }

@@ -1,14 +1,14 @@
 package dkim
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"hash"
 	"encoding/base64"
 	"fmt"
+	"hash"
 	"io"
 	"strconv"
 	"strings"
@@ -16,18 +16,18 @@ import (
 )
 
 var (
-	randReader io.Reader = rand.Reader
-	now func() time.Time = time.Now
+	randReader io.Reader        = rand.Reader
+	now        func() time.Time = time.Now
 )
 
 type Options struct {
-	Domain string
+	Domain   string
 	Selector string
 
 	Signer crypto.Signer
 
 	HeaderCanonicalization string
-	BodyCanonicalization string
+	BodyCanonicalization   string
 
 	Hash crypto.Hash
 
@@ -121,11 +121,11 @@ func Sign(w io.Writer, r io.Reader, options *Options) error {
 	}
 
 	params := map[string]string{
-		"v": "1",
-		"a": keyAlgo + "-" + hashAlgo,
+		"v":  "1",
+		"a":  keyAlgo + "-" + hashAlgo,
 		"bh": signature,
-		"c": headerCan + "/" + bodyCan,
-		"d": options.Domain,
+		"c":  headerCan + "/" + bodyCan,
+		"d":  options.Domain,
 		//"i": "", // TODO
 		//"l": "", // TODO
 		//"q": "", // TODO

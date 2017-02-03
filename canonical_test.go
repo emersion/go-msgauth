@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var simpleCanonicalizerBodyTests = []struct{
+var simpleCanonicalizerBodyTests = []struct {
 	original  string
 	canonical string
 }{
@@ -53,7 +53,7 @@ func TestSimpleCanonicalizer_CanonicalBody(t *testing.T) {
 	}
 }
 
-var relaxedCanonicalizerHeaderTests = []struct{
+var relaxedCanonicalizerHeaderTests = []struct {
 	original  string
 	canonical string
 }{
@@ -81,7 +81,7 @@ func TestRelaxedCanonicalizer_CanonicalizeHeader(t *testing.T) {
 	}
 }
 
-var relaxedCanonicalizerBodyTests = []struct{
+var relaxedCanonicalizerBodyTests = []struct {
 	original  string
 	canonical string
 }{

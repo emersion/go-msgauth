@@ -11,18 +11,18 @@ type canonicalizer interface {
 }
 
 var canonicalizers = map[string]canonicalizer{
-	"simple": new(simpleCanonicalizer),
+	"simple":  new(simpleCanonicalizer),
 	"relaxed": new(relaxedCanonicalizer),
 }
 
-type simpleCanonicalizer struct {}
+type simpleCanonicalizer struct{}
 
 func (c *simpleCanonicalizer) CanonicalizeHeader(s string) string {
 	return s
 }
 
 type simpleBodyCanonicalizer struct {
-	w io.Writer
+	w       io.Writer
 	crlfBuf []byte
 }
 
@@ -69,7 +69,7 @@ func (c *simpleCanonicalizer) CanonicalizeBody(w io.Writer) io.WriteCloser {
 	return &simpleBodyCanonicalizer{w: w}
 }
 
-type relaxedCanonicalizer struct {}
+type relaxedCanonicalizer struct{}
 
 func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 	kv := strings.SplitN(s, ":", 2)
@@ -99,9 +99,9 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 }
 
 type relaxedBodyCanonicalizer struct {
-	w io.Writer
+	w       io.Writer
 	crlfBuf []byte
-	wspBuf []byte
+	wspBuf  []byte
 }
 
 func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {

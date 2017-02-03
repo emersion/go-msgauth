@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var headerTests = []struct{
+var headerTests = []struct {
 	h header
 	s string
 }{
