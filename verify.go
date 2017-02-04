@@ -186,6 +186,8 @@ func verify(h header, r io.Reader, sigField string) error {
 	}
 
 	// Compute data hash
+	// TODO: support signing different fields with same name
+	// TODO: optimize this with a map
 	hasher.Reset()
 	for _, key := range keys {
 		for _, kv := range h {
