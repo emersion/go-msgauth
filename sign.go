@@ -116,8 +116,8 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	// Sign body
 	// We need to keep a copy of the body in memory
 	var b bytes.Buffer
-	hash := options.Hash.New()
-	can := canonicalizers[bodyCan].CanonicalizeBody(hash)
+	hasher := options.Hash.New()
+	can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
 	mw := io.MultiWriter(&b, can)
 	if _, err := io.Copy(mw, br); err != nil {
 		return err
@@ -126,7 +126,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		return err
 	}
 
-	signature, err := signHash(hash, options.Signer, options)
+	signature, err := signHash(hasher, options.Signer, options)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	// TODO: support options.HeaderKeys
 	var headerKeys []string
 	for _, kv := range h {
-		k := headerKey(kv)
+		k, _ := parseHeaderField(kv)
 		headerKeys = append(headerKeys, k)
 	}
 	params["h"] = strings.Join(headerKeys, ":")
@@ -157,15 +157,15 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	h = append(h, formatSignature(params))
 
 	// Hash and sign headers
-	hash.Reset()
+	hasher.Reset()
 	for _, kv := range h {
 		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
 
-		if _, err := hash.Write([]byte(kv)); err != nil {
+		if _, err := hasher.Write([]byte(kv)); err != nil {
 			return err
 		}
 	}
-	signature, err = signHash(hash, options.Signer, options)
+	signature, err = signHash(hasher, options.Signer, options)
 	if err != nil {
 		return err
 	}
@@ -185,9 +185,9 @@ func formatSignature(params map[string]string) string {
 	return "DKIM-Signature: " + formatHeaderParams(params) + crlf
 }
 
-func signHash(h hash.Hash, signer crypto.Signer, options *SignOptions) (string, error) {
-	sum := h.Sum(nil)
-	signature, err := signer.Sign(randReader, sum, options.Hash)
+func signHash(hasher hash.Hash, signer crypto.Signer, options *SignOptions) (string, error) {
+	hashed := hasher.Sum(nil)
+	signature, err := signer.Sign(randReader, hashed, options.Hash)
 	if err != nil {
 		return "", err
 	}

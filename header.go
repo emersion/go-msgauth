@@ -2,6 +2,7 @@ package dkim
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"net/textproto"
 	"sort"
@@ -45,9 +46,27 @@ func writeHeader(w io.Writer, h header) error {
 	return err
 }
 
-func headerKey(s string) string {
+func parseHeaderField(s string) (k string, v string) {
 	kv := strings.SplitN(s, ":", 2)
-	return strings.TrimSpace(kv[0])
+	k = strings.TrimSpace(kv[0])
+	if len(kv) > 1 {
+		v = strings.TrimSpace(kv[1])
+	}
+	return
+}
+
+func parseHeaderParams(s string) (map[string]string, error) {
+	pairs := strings.Split(s, ";")
+	params := make(map[string]string)
+	for _, s := range pairs {
+		kv := strings.SplitN(s, "=", 2)
+		if len(kv) != 2 {
+			return params, errors.New("dkim: malformed header params")
+		}
+
+		params[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+	}
+	return params, nil
 }
 
 func formatHeaderParams(params map[string]string) string {
