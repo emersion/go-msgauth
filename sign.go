@@ -113,7 +113,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		return err
 	}
 
-	// Sign body
+	// Hash body
 	// We need to keep a copy of the body in memory
 	var b bytes.Buffer
 	hasher := options.Hash.New()
@@ -125,16 +125,12 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	if err := can.Close(); err != nil {
 		return err
 	}
-
-	signature, err := signHash(hasher, options.Signer, options)
-	if err != nil {
-		return err
-	}
+	bodyHashed := hasher.Sum(nil)
 
 	params := map[string]string{
 		"v":  "1",
 		"a":  keyAlgo + "-" + hashAlgo,
-		"bh": signature,
+		"bh": base64.StdEncoding.EncodeToString(bodyHashed),
 		"c":  headerCan + "/" + bodyCan,
 		"d":  options.Domain,
 		//"i": "", // TODO
@@ -165,7 +161,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 			return err
 		}
 	}
-	signature, err = signHash(hasher, options.Signer, options)
+	signature, err := signHash(hasher, options.Signer, options)
 	if err != nil {
 		return err
 	}

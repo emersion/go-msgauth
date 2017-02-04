@@ -3,6 +3,7 @@ package dkim
 import (
 	"bufio"
 	"crypto"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -157,14 +158,14 @@ func verify(h header, r io.Reader, signature string) error {
 		return permFailError("unsupported body canonicalization algorithm")
 	}
 
-	// Parse signatures
+	// Parse body hash and header signature
 	// TODO: parse header signature
-	bodySig, err := base64.StdEncoding.DecodeString(params["bh"])
+	bodyHashed, err := base64.StdEncoding.DecodeString(params["bh"])
 	if err != nil {
 		return permFailError("malformed body signature: " + err.Error())
 	}
 
-	// Check body signature
+	// Check body hash
 	// TODO: support body length
 	hasher := hash.New()
 	wc := canonicalizers[bodyCan].CanonicalizeBody(hasher)
@@ -174,12 +175,14 @@ func verify(h header, r io.Reader, signature string) error {
 	if err := wc.Close(); err != nil {
 		return err
 	}
-	hashed := hasher.Sum(nil)
-	if err := res.Verifier.Verify(hash, hashed, bodySig); err != nil {
-		return permFailError("body hash did not verify: " + err.Error())
+	if subtle.ConstantTimeCompare(hasher.Sum(nil), bodyHashed) != 1 {
+		return permFailError("body hash did not verify")
 	}
 
 	// TODO: check header signature
+	/*if err := res.Verifier.Verify(hash, hashed, bodySig); err != nil {
+		return permFailError("body hash did not verify: " + err.Error())
+	}*/
 
 	return nil
 }

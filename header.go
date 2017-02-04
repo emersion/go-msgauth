@@ -61,6 +61,9 @@ func parseHeaderParams(s string) (map[string]string, error) {
 	for _, s := range pairs {
 		kv := strings.SplitN(s, "=", 2)
 		if len(kv) != 2 {
+			if strings.TrimSpace(s) == "" {
+				continue
+			}
 			return params, errors.New("dkim: malformed header params")
 		}
 
