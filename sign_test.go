@@ -22,11 +22,11 @@ const mailBodyString = "Hi.\r\n" +
 
 const mailString = mailHeaderString + "\r\n" + mailBodyString
 
-const signedMailString = mailHeaderString +
-	"DKIM-Signature: a=rsa-sha256; " +
-	"b=a+c/h2CohBY0lCVAchFpxkvBtayibWV7YyqrYDHh4FnwtvEBAiBY1A5tBx8VYytQZs6rxCODzEOjq64+lCHD8+pSfOcbPbNYzluTbyWV88vRV6VQG6p1eDvTdB1Lug5SNAbF+HfCEE25niBGQLF/YteoYRfK1bVnI/4EtYF1/EI=; " +
+const signedMailString = "DKIM-Signature: a=rsa-sha256; " +
+	"b=J6O5/fEAf02/V9/gYJG74ZWo+gLcfJcK9fITR52VHdJ9QhkskrJ8IKeuFx9TvfczXx2FBCPYEC3wfud/4FDqO4kXTs5RpFcsiHCEe2XFdqp+ZJk6ww7+b4sLR8Rpj9T2MdcP4u3z2OHJuyr71uKL97HGdwz7+LebEyEvNaoDO0c=; " +
 	"bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=; " +
-	"c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID; s=; t=424242; v=1;\r\n" +
+	"c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID; s=brisbane; t=424242; v=1;\r\n" +
+	mailHeaderString +
 	"\r\n" +
 	mailBodyString
 
@@ -41,6 +41,7 @@ func TestSign(t *testing.T) {
 	r := strings.NewReader(mailString)
 	options := &SignOptions{
 		Domain: "example.org",
+		Selector: "brisbane",
 		Signer: testPrivateKey,
 	}
 

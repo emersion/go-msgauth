@@ -21,7 +21,7 @@ func (v *rsaVerifier) Public() crypto.PublicKey {
 	return v.PublicKey
 }
 
-func (v *rsaVerifier) Verify(hash crypto.Hash, hashed []byte, sig []byte) error {
+func (v *rsaVerifier) Verify(hash crypto.Hash, hashed, sig []byte) error {
 	return rsa.VerifyPKCS1v15(v.PublicKey, hash, hashed, sig)
 }
 

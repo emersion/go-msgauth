@@ -8,7 +8,6 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"fmt"
-	"hash"
 	"io"
 	"strconv"
 	"strings"
@@ -40,7 +39,9 @@ type SignOptions struct {
 	BodyCanonicalization   string
 
 	// A list of header fields to include in the signature. If nil, all headers
-	// will be included.
+	// will be included. If not nil, "From" MUST be in the list.
+	//
+	// See RFC 6376 section 5.4.1 for recommended header fields.
 	HeaderKeys []string
 }
 
@@ -150,24 +151,32 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	}
 	params["h"] = strings.Join(headerKeys, ":")
 
-	h = append(h, formatSignature(params))
-
 	// Hash and sign headers
 	hasher.Reset()
 	for _, kv := range h {
 		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
-
 		if _, err := hasher.Write([]byte(kv)); err != nil {
 			return err
 		}
 	}
-	signature, err := signHash(hasher, options.Signer, options)
+
+	params["b"] = ""
+	sigField := strings.TrimRight(formatSignature(params), crlf)
+	if _, err := hasher.Write([]byte(sigField)); err != nil {
+		return err
+	}
+	hashed := hasher.Sum(nil)
+
+	sig, err := options.Signer.Sign(randReader, hashed, options.Hash)
 	if err != nil {
 		return err
 	}
-	params["b"] = signature
-	h[len(h)-1] = formatSignature(params)
+	params["b"] = base64.StdEncoding.EncodeToString(sig)
+	sigField = formatSignature(params)
 
+	if _, err := w.Write([]byte(sigField)); err != nil {
+		return err
+	}
 	if err := writeHeader(w, h); err != nil {
 		return err
 	}
@@ -179,13 +188,4 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 func formatSignature(params map[string]string) string {
 	// TODO: fold lines
 	return "DKIM-Signature: " + formatHeaderParams(params) + crlf
-}
-
-func signHash(hasher hash.Hash, signer crypto.Signer, options *SignOptions) (string, error) {
-	hashed := hasher.Sum(nil)
-	signature, err := signer.Sign(randReader, hashed, options.Hash)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(signature), nil
 }

@@ -7,7 +7,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
+	"unicode"
 )
 
 var ErrNoSignature = errors.New("dkim: no signature found")
@@ -45,18 +47,19 @@ func Verify(r io.Reader) error {
 	}
 
 	// TODO: support multiple signatures
-	for _, kv := range h {
-		k, v := parseHeaderField(kv)
+	for i, kv := range h {
+		k, _ := parseHeaderField(kv)
 
 		if strings.ToLower(k) == "dkim-signature" {
-			return verify(h, br, v)
+			return verify(h[i:], br, kv)
 		}
 	}
 	return ErrNoSignature
 }
 
-func verify(h header, r io.Reader, signature string) error {
-	params, err := parseHeaderParams(signature)
+func verify(h header, r io.Reader, sigField string) error {
+	_, sigValue := parseHeaderField(sigField)
+	params, err := parseHeaderParams(sigValue)
 	if err != nil {
 		return err
 	}
@@ -158,11 +161,14 @@ func verify(h header, r io.Reader, signature string) error {
 		return permFailError("unsupported body canonicalization algorithm")
 	}
 
-	// Parse body hash and header signature
-	// TODO: parse header signature
-	bodyHashed, err := base64.StdEncoding.DecodeString(params["bh"])
+	// Parse body hash and signature
+	bodyHashed, err := decodeBase64String(params["bh"])
 	if err != nil {
-		return permFailError("malformed body signature: " + err.Error())
+		return permFailError("malformed body hash: " + err.Error())
+	}
+	sig, err := decodeBase64String(params["b"])
+	if err != nil {
+		return permFailError("malformed signature: " + err.Error())
 	}
 
 	// Check body hash
@@ -179,10 +185,34 @@ func verify(h header, r io.Reader, signature string) error {
 		return permFailError("body hash did not verify")
 	}
 
-	// TODO: check header signature
-	/*if err := res.Verifier.Verify(hash, hashed, bodySig); err != nil {
-		return permFailError("body hash did not verify: " + err.Error())
-	}*/
+	// Compute data hash
+	hasher.Reset()
+	for _, key := range keys {
+		for _, kv := range h {
+			k, _ := parseHeaderField(kv)
+			if !strings.EqualFold(k, key) {
+				continue
+			}
+
+			kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+			if _, err := hasher.Write([]byte(kv)); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	canSigField := removeSignature(sigField)
+	canSigField = canonicalizers[headerCan].CanonicalizeHeader(canSigField)
+	canSigField = strings.TrimRight(canSigField, "\r\n")
+	if _, err := hasher.Write([]byte(canSigField)); err != nil {
+		return err
+	}
+	hashed := hasher.Sum(nil)
+
+	// Check signature
+	if err := res.Verifier.Verify(hash, hashed, sig); err != nil {
+		return permFailError("signature did not verify: " + err.Error())
+	}
 
 	return nil
 }
@@ -207,4 +237,18 @@ func parseCanonicalization(s string) (headerCan, bodyCan string) {
 		bodyCan = cans[1]
 	}
 	return
+}
+
+func decodeBase64String(s string) ([]byte, error) {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, s)
+	return base64.StdEncoding.DecodeString(s)
+}
+
+func removeSignature(s string) string {
+	return regexp.MustCompile(`(b\s*=)[^;]+`).ReplaceAllString(s, "$1$2")
 }

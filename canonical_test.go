@@ -99,31 +99,31 @@ var relaxedCanonicalizerBodyTests = []struct {
 	},
 	{
 		"Hey\r\n\r\n",
-		"Hey",
+		"Hey\r\n",
 	},
 	{
 		"Hey\r\nHow r u?\r\n\r\n\r\n",
-		"Hey\r\nHow r u?",
+		"Hey\r\nHow r u?\r\n",
 	},
 	{
 		"Hey\r\n\r\nHow r u?",
-		"Hey\r\n\r\nHow r u?",
+		"Hey\r\n\r\nHow r u?\r\n",
 	},
 	{
 		"Hey \t you!",
-		"Hey you!",
+		"Hey you!\r\n",
 	},
 	{
 		"Hey \t \r\nyou!",
-		"Hey\r\nyou!",
+		"Hey\r\nyou!\r\n",
 	},
 	{
 		"Hey\r\n \t you!\r\n",
-		"Hey\r\n \t you!",
+		"Hey\r\n \t you!\r\n",
 	},
 	{
 		"Hey\r\n \t \r\n \r\n",
-		"Hey",
+		"Hey\r\n",
 	},
 }
 
