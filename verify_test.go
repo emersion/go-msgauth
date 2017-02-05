@@ -38,7 +38,8 @@ Joe.
 func TestVerify(t *testing.T) {
 	r := strings.NewReader(strings.Replace(verifiedMailString, "\n", "\r\n", -1))
 
-	if err := Verify(r); err != nil {
+	_, err := Verify(r)
+	if err != nil {
 		//t.Errorf("Expected no error while verifying signature, got: %v", err)
 	}
 }

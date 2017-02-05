@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"
-	"errors"
 	"io"
 	"regexp"
 	"strconv"
@@ -13,9 +12,6 @@ import (
 	"time"
 	"unicode"
 )
-
-// ErrNoSignature is returned by Verify when no DKIM signature is present.
-var ErrNoSignature = errors.New("dkim: no signature found")
 
 type permFailError string
 
@@ -45,50 +41,95 @@ func IsTempFail(err error) bool {
 
 var requiredTags = []string{"v", "a", "b", "bh", "d", "h", "s"}
 
-// Verify checks if a message's DKIM signature is valid.
-func Verify(r io.Reader) error {
+// A Verification is produced by Verify when it checks if one signature is
+// valid. If the signature is valid, Err is nil.
+type Verification struct {
+	// The SDID claiming responsibility for an introduction of a message into the
+	// mail stream.
+	Domain string
+	// The Agent or User Identifier (AUID) on behalf of which the SDID is taking
+	// responsibility.
+	Identifier string
+
+	// The time that this signature was created. If unknown, it's set to zero.
+	Time time.Time
+	// The expiration time. If the signature doesn't expire, it's set to zero.
+	Expiration time.Time
+
+	// Err is nil if the signature is valid.
+	Err error
+}
+
+type signature struct {
+	i int
+	v string
+}
+
+// Verify checks if a message's signatures are valid. It returns on verification
+// per signature.
+func Verify(r io.Reader) ([]*Verification, error) {
+	// TODO: be able to specify options such as the max number of signatures to
+	// check
+
 	// Read header
 	br := bufio.NewReader(r)
 	h, err := readHeader(br)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// TODO: support multiple signatures
+	// Scan header fields for signatures
+	var signatures []*signature
 	for i, kv := range h {
-		k, _ := parseHeaderField(kv)
-
+		k, v := parseHeaderField(kv)
 		if strings.ToLower(k) == "dkim-signature" {
-			return verify(h[i:], br, kv)
+			signatures = append(signatures, &signature{i, v})
 		}
 	}
-	return ErrNoSignature
+
+	// TODO: copy body in a buffer if multiple signatures are checked
+
+	verifications := make([]*Verification, len(signatures))
+	for i, sig := range signatures {
+		v, err := verify(h, br, h[sig.i], sig.v)
+		if err != nil && !IsTempFail(err) && !IsPermFail(err) {
+			return verifications, err
+		}
+
+		v.Err = err
+		verifications[i] = v
+	}
+	return verifications, nil
 }
 
-func verify(h header, r io.Reader, sigField string) error {
-	_, sigValue := parseHeaderField(sigField)
+func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, error) {
+	verif := new(Verification)
+
 	params, err := parseHeaderParams(sigValue)
 	if err != nil {
-		return err
+		return verif, permFailError("malformed signature tags: " + err.Error())
 	}
 
 	if params["v"] != "1" {
-		return permFailError("incompatible signature version")
+		return verif, permFailError("incompatible signature version")
 	}
+
+	verif.Domain = params["d"]
 
 	for _, tag := range requiredTags {
 		if _, ok := params[tag]; !ok {
-			return permFailError("signature missing required tag")
+			return verif, permFailError("signature missing required tag")
 		}
 	}
 
 	if i, ok := params["i"]; ok {
 		if !strings.HasSuffix(i, "@"+params["d"]) && !strings.HasSuffix(i, "."+params["d"]) {
-			return permFailError("domain mismatch")
+			return verif, permFailError("domain mismatch")
 		}
 	} else {
 		params["i"] = "@" + params["d"]
 	}
+	verif.Identifier = params["i"]
 
 	keys := parseTagList(params["h"])
 	ok := false
@@ -99,18 +140,24 @@ func verify(h header, r io.Reader, sigField string) error {
 		}
 	}
 	if !ok {
-		return permFailError("From field not signed")
+		return verif, permFailError("From field not signed")
 	}
 
-	if expiresStr, ok := params["x"]; ok {
-		seconds, err := strconv.ParseInt(expiresStr, 10, 64)
+	if timeStr, ok := params["t"]; ok {
+		t, err := parseTime(timeStr)
 		if err != nil {
-			return permFailError("malformed expiration time: " + err.Error())
+			return verif, permFailError("malformed time: " + err.Error())
 		}
-		t := time.Unix(seconds, 0)
-
+		verif.Time = t
+	}
+	if expiresStr, ok := params["x"]; ok {
+		t, err := parseTime(expiresStr)
+		if err != nil {
+			return verif, permFailError("malformed expiration time: " + err.Error())
+		}
+		verif.Expiration = t
 		if now().After(t) {
-			return permFailError("signature has expired")
+			return verif, permFailError("signature has expired")
 		}
 	}
 
@@ -128,15 +175,15 @@ func verify(h header, r io.Reader, sigField string) error {
 		}
 	}
 	if err != nil {
-		return err
+		return verif, err
 	} else if res == nil {
-		return permFailError("unsupported public key query method")
+		return verif, permFailError("unsupported public key query method")
 	}
 
 	// Parse algos
 	algos := strings.SplitN(params["a"], "-", 2)
 	if len(algos) != 2 {
-		return permFailError("malformed algorithm name")
+		return verif, permFailError("malformed algorithm name")
 	}
 	keyAlgo := algos[0]
 	hashAlgo := algos[1]
@@ -151,7 +198,7 @@ func verify(h header, r io.Reader, sigField string) error {
 			}
 		}
 		if !ok {
-			return permFailError("inappropriate hash algorithm")
+			return verif, permFailError("inappropriate hash algorithm")
 		}
 	}
 	var hash crypto.Hash
@@ -161,32 +208,32 @@ func verify(h header, r io.Reader, sigField string) error {
 	case "sha256":
 		hash = crypto.SHA256
 	default:
-		return permFailError("unsupported hash algorithm")
+		return verif, permFailError("unsupported hash algorithm")
 	}
 
 	// Check key algo
 	if res.KeyAlgo != keyAlgo {
-		return permFailError("inappropriate key algorithm")
+		return verif, permFailError("inappropriate key algorithm")
 	}
 
 	// TODO: check service
 
 	headerCan, bodyCan := parseCanonicalization(params["c"])
 	if _, ok := canonicalizers[headerCan]; !ok {
-		return permFailError("unsupported header canonicalization algorithm")
+		return verif, permFailError("unsupported header canonicalization algorithm")
 	}
 	if _, ok := canonicalizers[bodyCan]; !ok {
-		return permFailError("unsupported body canonicalization algorithm")
+		return verif, permFailError("unsupported body canonicalization algorithm")
 	}
 
 	// Parse body hash and signature
 	bodyHashed, err := decodeBase64String(params["bh"])
 	if err != nil {
-		return permFailError("malformed body hash: " + err.Error())
+		return verif, permFailError("malformed body hash: " + err.Error())
 	}
 	sig, err := decodeBase64String(params["b"])
 	if err != nil {
-		return permFailError("malformed signature: " + err.Error())
+		return verif, permFailError("malformed signature: " + err.Error())
 	}
 
 	// Check body hash
@@ -194,13 +241,13 @@ func verify(h header, r io.Reader, sigField string) error {
 	hasher := hash.New()
 	wc := canonicalizers[bodyCan].CanonicalizeBody(hasher)
 	if _, err := io.Copy(wc, r); err != nil {
-		return err
+		return verif, err
 	}
 	if err := wc.Close(); err != nil {
-		return err
+		return verif, err
 	}
 	if subtle.ConstantTimeCompare(hasher.Sum(nil), bodyHashed) != 1 {
-		return permFailError("body hash did not verify")
+		return verif, permFailError("body hash did not verify")
 	}
 
 	// Compute data hash
@@ -216,7 +263,7 @@ func verify(h header, r io.Reader, sigField string) error {
 
 			kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
 			if _, err := hasher.Write([]byte(kv)); err != nil {
-				return err
+				return verif, err
 			}
 			break
 		}
@@ -225,16 +272,16 @@ func verify(h header, r io.Reader, sigField string) error {
 	canSigField = canonicalizers[headerCan].CanonicalizeHeader(canSigField)
 	canSigField = strings.TrimRight(canSigField, "\r\n")
 	if _, err := hasher.Write([]byte(canSigField)); err != nil {
-		return err
+		return verif, err
 	}
 	hashed := hasher.Sum(nil)
 
 	// Check signature
 	if err := res.Verifier.Verify(hash, hashed, sig); err != nil {
-		return permFailError("signature did not verify: " + err.Error())
+		return verif, permFailError("signature did not verify: " + err.Error())
 	}
 
-	return nil
+	return verif, nil
 }
 
 func parseTagList(s string) []string {
@@ -257,6 +304,14 @@ func parseCanonicalization(s string) (headerCan, bodyCan string) {
 		bodyCan = cans[1]
 	}
 	return
+}
+
+func parseTime(s string) (time.Time, error) {
+	sec, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(sec, 0), nil
 }
 
 func decodeBase64String(s string) ([]byte, error) {

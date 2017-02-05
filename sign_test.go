@@ -64,7 +64,19 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatal("Expected no error while signing mail, got:", err)
 	}
 
-	if err := Verify(&b); err != nil {
-		t.Errorf("Expected no error while verifying signature, got: %v", err)
+	verifications, err := Verify(&b)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	}
+	if len(verifications) != 1 {
+		t.Error("Expected exactly one verification")
+	} else {
+		v := verifications[0]
+		if err := v.Err; err != nil {
+			t.Errorf("Expected no error when verifying signature, got: %v", err)
+		}
+		if v.Domain != options.Domain {
+			t.Errorf("Expected domain to be %q but got %q", options.Domain, v.Domain)
+		}
 	}
 }

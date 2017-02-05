@@ -11,6 +11,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var randReader io.Reader = rand.Reader
@@ -40,6 +41,9 @@ type SignOptions struct {
 	//
 	// See RFC 6376 section 5.4.1 for recommended header fields.
 	HeaderKeys []string
+
+	// The expiration time. A zero value means no expiration.
+	Expiration time.Time
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.

@@ -30,8 +30,17 @@ if err := dkim.Sign(&b, r, options); err != nil {
 ```go
 r := strings.NewReader(mailString)
 
-if err := dkim.Verify(r); err != nil {
+verifications, err := dkim.Verify(r)
+if err != nil {
 	log.Fatal(err)
+}
+
+for _, v := range verifications {
+	if v.Err == nil {
+		log.Println("Valid signature for:", v.Domain)
+	} else {
+		log.Println("Invalid signature for:", v.Domain, v.Err)
+	}
 }
 ```
 
