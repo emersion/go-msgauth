@@ -216,7 +216,18 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 		return verif, permFailError("inappropriate key algorithm")
 	}
 
-	// TODO: check service
+	if res.Services != nil {
+		ok := false
+		for _, s := range res.Services {
+			if s == "email" {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return verif, permFailError("inappropriate service")
+		}
+	}
 
 	headerCan, bodyCan := parseCanonicalization(params["c"])
 	if _, ok := canonicalizers[headerCan]; !ok {

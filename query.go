@@ -30,7 +30,7 @@ type queryResult struct {
 	KeyAlgo          string
 	HashAlgos        []string
 	Notes            string
-	AcceptedServices []string
+	Services []string
 	Flags            []string
 }
 
@@ -113,9 +113,8 @@ func parsePublicKey(s string) (*queryResult, error) {
 				break
 			}
 		}
-
 		if !hasWildcard {
-			res.AcceptedServices = services
+			res.Services = services
 		}
 	}
 	if flagsStr, ok := params["t"]; ok {
