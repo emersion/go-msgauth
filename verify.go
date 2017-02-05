@@ -51,6 +51,9 @@ type Verification struct {
 	// responsibility.
 	Identifier string
 
+	// The list of signed header fields.
+	HeaderKeys []string
+
 	// The time that this signature was created. If unknown, it's set to zero.
 	Time time.Time
 	// The expiration time. If the signature doesn't expire, it's set to zero.
@@ -142,6 +145,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	if !ok {
 		return verif, permFailError("From field not signed")
 	}
+	verif.HeaderKeys = headerKeys
 
 	if timeStr, ok := params["t"]; ok {
 		t, err := parseTime(timeStr)

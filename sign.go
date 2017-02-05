@@ -26,6 +26,9 @@ type SignOptions struct {
 	Domain string
 	// The selector subdividing the namespace for the domain.
 	Selector string
+	// The Agent or User Identifier (AUID) on behalf of which the SDID is taking
+	// responsibility.
+	Identifier string
 
 	// The key used to sign the message.
 	Signer crypto.Signer
@@ -44,6 +47,9 @@ type SignOptions struct {
 
 	// The expiration time. A zero value means no expiration.
 	Expiration time.Time
+
+	// A list of query methods used to retrieve the public key.
+	QueryMethods []string
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.
@@ -138,12 +144,9 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		"bh": base64.StdEncoding.EncodeToString(bodyHashed),
 		"c":  headerCan + "/" + bodyCan,
 		"d":  options.Domain,
-		//"i": "", // TODO
 		//"l": "", // TODO
-		//"q": "", // TODO
 		"s": options.Selector,
-		"t": strconv.FormatInt(now().Unix(), 10),
-		//"x": "", // TODO
+		"t": formatTime(now()),
 		//"z": "", // TODO
 	}
 
@@ -156,7 +159,19 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 			headerKeys = append(headerKeys, k)
 		}
 	}
-	params["h"] = strings.Join(headerKeys, ":")
+	params["h"] = formatTagList(headerKeys)
+
+	if options.Identifier != "" {
+		params["i"] = options.Identifier
+	}
+
+	if options.QueryMethods != nil {
+		params["q"] = formatTagList(options.QueryMethods)
+	}
+
+	if !options.Expiration.IsZero() {
+		params["x"] = formatTime(options.Expiration)
+	}
 
 	// Hash and sign headers
 	hasher.Reset()
@@ -201,4 +216,12 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 func formatSignature(params map[string]string) string {
 	// TODO: fold lines
 	return "DKIM-Signature: " + formatHeaderParams(params) + crlf
+}
+
+func formatTagList(l []string) string {
+	return strings.Join(l, ":")
+}
+
+func formatTime(t time.Time) string {
+	return strconv.FormatInt(t.Unix(), 10)
 }
