@@ -94,3 +94,34 @@ func formatHeaderParams(params map[string]string) string {
 	}
 	return s
 }
+
+type headerPicker struct {
+	h header
+	picked map[string]int
+}
+
+func newHeaderPicker(h header) *headerPicker {
+	return &headerPicker{
+		h: h,
+		picked: make(map[string]int),
+	}
+}
+
+func (p *headerPicker) Pick(key string) string {
+	at := p.picked[key]
+	for i := len(p.h)-1; i >= 0; i-- {
+		kv := p.h[i]
+		k, _ := parseHeaderField(kv)
+		if k != key {
+			continue
+		}
+
+		if at == 0 {
+			p.picked[key]++
+			return kv
+		}
+		at--
+	}
+
+	return ""
+}

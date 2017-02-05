@@ -147,17 +147,26 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		//"z": "", // TODO
 	}
 
-	// TODO: support options.HeaderKeys
 	var headerKeys []string
-	for _, kv := range h {
-		k, _ := parseHeaderField(kv)
-		headerKeys = append(headerKeys, k)
+	if options.HeaderKeys != nil {
+		headerKeys = options.HeaderKeys
+	} else {
+		for _, kv := range h {
+			k, _ := parseHeaderField(kv)
+			headerKeys = append(headerKeys, k)
+		}
 	}
 	params["h"] = strings.Join(headerKeys, ":")
 
 	// Hash and sign headers
 	hasher.Reset()
-	for _, kv := range h {
+	picker := newHeaderPicker(h)
+	for _, k := range headerKeys {
+		kv := picker.Pick(k)
+		if kv == "" {
+			continue
+		}
+
 		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
 		if _, err := hasher.Write([]byte(kv)); err != nil {
 			return err

@@ -131,9 +131,9 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	}
 	verif.Identifier = params["i"]
 
-	keys := parseTagList(params["h"])
+	headerKeys := parseTagList(params["h"])
 	ok := false
-	for _, k := range keys {
+	for _, k := range headerKeys {
 		if strings.ToLower(k) == "from" {
 			ok = true
 			break
@@ -251,21 +251,17 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	}
 
 	// Compute data hash
-	// TODO: support signing different fields with same name
-	// TODO: optimize this with a map
 	hasher.Reset()
-	for _, key := range keys {
-		for _, kv := range h {
-			k, _ := parseHeaderField(kv)
-			if !strings.EqualFold(k, key) {
-				continue
-			}
+	picker := newHeaderPicker(h)
+	for _, key := range headerKeys {
+		kv := picker.Pick(key)
+		if kv == "" {
+			continue
+		}
 
-			kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
-			if _, err := hasher.Write([]byte(kv)); err != nil {
-				return verif, err
-			}
-			break
+		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+		if _, err := hasher.Write([]byte(kv)); err != nil {
+			return verif, err
 		}
 	}
 	canSigField := removeSignature(sigField)
