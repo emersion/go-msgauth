@@ -50,6 +50,9 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	if options.Domain == "" {
 		return fmt.Errorf("dkim: no domain specified")
 	}
+	if options.Selector == "" {
+		return fmt.Errorf("dkim: no selector specified")
+	}
 	if options.Signer == nil {
 		return fmt.Errorf("dkim: no signer specified")
 	}
