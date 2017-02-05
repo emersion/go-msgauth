@@ -8,10 +8,13 @@ import (
 	"errors"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
+// ErrNoSignature is returned by Verify when no DKIM signature is present.
 var ErrNoSignature = errors.New("dkim: no signature found")
 
 type permFailError string
@@ -20,6 +23,8 @@ func (err permFailError) Error() string {
 	return "dkim: " + string(err)
 }
 
+// IsPermFail returns true if the error returned by Verify is a permanent
+// failure.
 func IsPermFail(err error) bool {
 	_, ok := err.(permFailError)
 	return ok
@@ -31,6 +36,8 @@ func (err tempFailError) Error() string {
 	return "dkim: " + string(err)
 }
 
+// IsTempFail returns true if the error returned by Verify is a temporary
+// failure.
 func IsTempFail(err error) bool {
 	_, ok := err.(tempFailError)
 	return ok
@@ -38,6 +45,7 @@ func IsTempFail(err error) bool {
 
 var requiredTags = []string{"v", "a", "b", "bh", "d", "h", "s"}
 
+// Verify checks if a message's DKIM signature is valid.
 func Verify(r io.Reader) error {
 	// Read header
 	br := bufio.NewReader(r)
@@ -94,7 +102,17 @@ func verify(h header, r io.Reader, sigField string) error {
 		return permFailError("From field not signed")
 	}
 
-	// TODO: permFailError("signature has expired")
+	if expiresStr, ok := params["x"]; ok {
+		seconds, err := strconv.ParseInt(expiresStr, 10, 64)
+		if err != nil {
+			return permFailError("malformed expiration time: " + err.Error())
+		}
+		t := time.Unix(seconds, 0)
+
+		if now().After(t) {
+			return permFailError("signature has expired")
+		}
+	}
 
 	// Query public key
 	// TODO: compute hash in parallel

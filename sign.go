@@ -11,13 +11,9 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"time"
 )
 
-var (
-	randReader io.Reader = rand.Reader
-	now                  = time.Now
-)
+var randReader io.Reader = rand.Reader
 
 // SignOptions is used to configure Sign. Domain and Signer are mandatory.
 type SignOptions struct {

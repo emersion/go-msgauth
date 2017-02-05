@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"time"
 )
 
 const testPrivateKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
@@ -34,4 +35,8 @@ func init() {
 		panic(err)
 	}
 	testPrivateKey = key
+
+	now = func() time.Time {
+		return time.Unix(424242, 0)
+	}
 }

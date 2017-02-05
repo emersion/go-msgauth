@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
-	"time"
 )
 
 const mailHeaderString = "From: Joe SixPack <joe@football.example.com>\r\n" +
@@ -32,17 +31,14 @@ const signedMailString = "DKIM-Signature: a=rsa-sha256; " +
 
 func init() {
 	randReader = rand.New(rand.NewSource(42))
-	now = func() time.Time {
-		return time.Unix(424242, 0)
-	}
 }
 
 func TestSign(t *testing.T) {
 	r := strings.NewReader(mailString)
 	options := &SignOptions{
-		Domain: "example.org",
+		Domain:   "example.org",
 		Selector: "brisbane",
-		Signer: testPrivateKey,
+		Signer:   testPrivateKey,
 	}
 
 	var b bytes.Buffer
