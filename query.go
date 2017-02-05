@@ -26,12 +26,12 @@ func (v *rsaVerifier) Verify(hash crypto.Hash, hashed, sig []byte) error {
 }
 
 type queryResult struct {
-	Verifier         verifier
-	KeyAlgo          string
-	HashAlgos        []string
-	Notes            string
-	Services []string
-	Flags            []string
+	Verifier  verifier
+	KeyAlgo   string
+	HashAlgos []string
+	Notes     string
+	Services  []string
+	Flags     []string
 }
 
 type queryFunc func(domain, selector string) (*queryResult, error)

@@ -54,9 +54,9 @@ func TestSign(t *testing.T) {
 func TestSignAndVerify(t *testing.T) {
 	r := strings.NewReader(mailString)
 	options := &SignOptions{
-		Domain: "example.org",
+		Domain:   "example.org",
 		Selector: "brisbane",
-		Signer: testPrivateKey,
+		Signer:   testPrivateKey,
 	}
 
 	var b bytes.Buffer
