@@ -44,6 +44,16 @@ for _, v := range verifications {
 }
 ```
 
+### FAQ
+
+**Why can't I verify a `mail.Message` directly?** A `mail.Message` header is
+already parsed, and whitespace characters (especially continuation lines) are
+removed. Thus, the signature computed from the parsed header is not the same as
+the one computed from the raw header.
+
+**How can I publish my public key?** You have to add a TXT record to your DNS
+zone. See [RFC 6376 appendix C](https://tools.ietf.org/html/rfc6376#appendix-C).
+
 ## License
 
 MIT
