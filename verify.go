@@ -53,6 +53,9 @@ type Verification struct {
 
 	// The list of signed header fields.
 	HeaderKeys []string
+	// The number of bytes in the body which are signed. If the whole body is
+	// signed, BodyLength is < 0.
+	BodyLength int64
 
 	// The time that this signature was created. If unknown, it's set to zero.
 	Time time.Time
@@ -241,6 +244,18 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 		return verif, permFailError("unsupported body canonicalization algorithm")
 	}
 
+	var bodyLen int64 = -1
+	if lenStr, ok := params["l"]; ok {
+		l, err := strconv.ParseInt(lenStr, 10, 64)
+		if err != nil {
+			return verif, permFailError("malformed body length: " + err.Error())
+		} else if l < 0 {
+			return verif, permFailError("malformed body length: negative value")
+		}
+		bodyLen = l
+	}
+	verif.BodyLength = bodyLen
+
 	// Parse body hash and signature
 	bodyHashed, err := decodeBase64String(params["bh"])
 	if err != nil {
@@ -252,9 +267,12 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	}
 
 	// Check body hash
-	// TODO: support body length
 	hasher := hash.New()
-	wc := canonicalizers[bodyCan].CanonicalizeBody(hasher)
+	var w io.Writer = hasher
+	if bodyLen > 0 {
+		w = &limitedWriter{W: w, N: bodyLen}
+	}
+	wc := canonicalizers[bodyCan].CanonicalizeBody(w)
 	if _, err := io.Copy(wc, r); err != nil {
 		return verif, err
 	}

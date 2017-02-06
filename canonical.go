@@ -150,3 +150,24 @@ func (c *relaxedBodyCanonicalizer) Close() error {
 func (c *relaxedCanonicalizer) CanonicalizeBody(w io.Writer) io.WriteCloser {
 	return &relaxedBodyCanonicalizer{w: w}
 }
+
+type limitedWriter struct {
+	W io.Writer
+	N int64
+}
+
+func (w *limitedWriter) Write(b []byte) (int, error) {
+	if w.N <= 0 {
+		return len(b), nil
+	}
+
+	skipped := 0
+	if int64(len(b)) > w.N {
+		b = b[:w.N]
+		skipped = int(int64(len(b)) - w.N)
+	}
+
+	n, err := w.W.Write(b)
+	w.N -= int64(n)
+	return n + skipped, err
+}
