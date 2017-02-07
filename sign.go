@@ -91,12 +91,13 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		return fmt.Errorf("dkim: unsupported key algorithm %T", options.Signer.Public())
 	}
 
+	hash := options.Hash
 	var hashAlgo string
 	switch options.Hash {
 	case crypto.SHA1:
 		hashAlgo = "sha1"
-	case 0:
-		options.Hash = crypto.SHA256
+	case 0: // sha256 is the default
+		hash = crypto.SHA256
 		fallthrough
 	case crypto.SHA256:
 		hashAlgo = "sha256"
@@ -127,7 +128,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	// Hash body
 	// We need to keep a copy of the body in memory
 	var b bytes.Buffer
-	hasher := options.Hash.New()
+	hasher := hash.New()
 	can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
 	mw := io.MultiWriter(&b, can)
 	if _, err := io.Copy(mw, br); err != nil {
@@ -195,7 +196,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	}
 	hashed := hasher.Sum(nil)
 
-	sig, err := options.Signer.Sign(randReader, hashed, options.Hash)
+	sig, err := options.Signer.Sign(randReader, hashed, hash)
 	if err != nil {
 		return err
 	}

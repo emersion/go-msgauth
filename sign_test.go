@@ -2,6 +2,7 @@ package dkim
 
 import (
 	"bytes"
+	"crypto"
 	"math/rand"
 	"strings"
 	"testing"
@@ -79,4 +80,83 @@ func TestSignAndVerify(t *testing.T) {
 			t.Errorf("Expected domain to be %q but got %q", options.Domain, v.Domain)
 		}
 	}
+}
+
+func TestSignAndVerify_relaxed(t *testing.T) {
+	r := strings.NewReader(mailString)
+	options := &SignOptions{
+		Domain:   "example.org",
+		Selector: "brisbane",
+		Signer:   testPrivateKey,
+		HeaderCanonicalization: "relaxed",
+		BodyCanonicalization: "relaxed",
+	}
+
+	var b bytes.Buffer
+	if err := Sign(&b, r, options); err != nil {
+		t.Fatal("Expected no error while signing mail, got:", err)
+	}
+
+	verifications, err := Verify(&b)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	}
+	if len(verifications) != 1 {
+		t.Error("Expected exactly one verification")
+	}
+}
+
+func TestSign_invalidOptions(t *testing.T) {
+	r := strings.NewReader(mailString)
+	var b bytes.Buffer
+
+	if err := Sign(&b, r, nil); err == nil {
+		t.Error("Expected an error when signing a message without options")
+	}
+
+	options := &SignOptions{}
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message without domain")
+	}
+	options.Domain = "example.org"
+
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message without selector")
+	}
+	options.Selector = "brisbane"
+
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message without signer")
+	}
+	options.Signer = testPrivateKey
+
+	options.HeaderCanonicalization = "pasta"
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message with an invalid header canonicalization")
+	}
+	options.HeaderCanonicalization = ""
+
+	options.BodyCanonicalization = "potatoe"
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message with an invalid body canonicalization")
+	}
+	options.BodyCanonicalization = ""
+
+	options.BodyCanonicalization = "potatoe"
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message with an invalid body canonicalization")
+	}
+	options.BodyCanonicalization = ""
+
+	options.Hash = ^crypto.Hash(0)
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message with an invalid hash algorithm")
+	}
+	options.Hash = 0
+
+	options.HeaderKeys = []string{"To"}
+	if err := Sign(&b, r, options); err == nil {
+		t.Error("Expected an error when signing a message without the From header")
+	}
+	options.HeaderKeys = nil
 }
