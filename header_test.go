@@ -40,6 +40,14 @@ func TestReadHeader(t *testing.T) {
 	}
 }
 
+func TestReadHeader_incomplete(t *testing.T) {
+	r := strings.NewReader("From: <mistuha@kiminonawa.moe>\r\nTo")
+	_, err := readHeader(bufio.NewReader(r))
+	if err == nil {
+		t.Error("Expected an error while reading incomplete header")
+	}
+}
+
 func TestFormatHeaderParams(t *testing.T) {
 	params := map[string]string{
 		"v": "1",
@@ -52,5 +60,12 @@ func TestFormatHeaderParams(t *testing.T) {
 	s := formatHeaderParams(params)
 	if s != expected {
 		t.Errorf("Expected formatted params to be %q, but got %q", expected, s)
+	}
+}
+
+func TestParseHeaderParams_malformed(t *testing.T) {
+	_, err := parseHeaderParams("abc; def")
+	if err == nil {
+		t.Error("Expected an error when parsing malformed header params")
 	}
 }
