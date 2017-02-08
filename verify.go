@@ -354,5 +354,5 @@ func decodeBase64String(s string) ([]byte, error) {
 }
 
 func removeSignature(s string) string {
-	return regexp.MustCompile(`(b\s*=)[^;]+`).ReplaceAllString(s, "$1$2")
+	return regexp.MustCompile(`(b\s*=)[^;]+`).ReplaceAllString(s, "$1")
 }
