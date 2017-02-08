@@ -1,11 +1,13 @@
 package dkim
 
 import (
+	"bytes"
 	"bufio"
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"
 	"io"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -78,8 +80,8 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	// check
 
 	// Read header
-	br := bufio.NewReader(r)
-	h, err := readHeader(br)
+	bufr := bufio.NewReader(r)
+	h, err := readHeader(bufr)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +95,26 @@ func Verify(r io.Reader) ([]*Verification, error) {
 		}
 	}
 
-	// TODO: copy body in a buffer if multiple signatures are checked
+	// Copy body in a buffer if multiple signatures are checked
+	var br *bytes.Reader
+	if len(signatures) > 1 {
+		b, err := ioutil.ReadAll(bufr)
+		if err != nil {
+			return nil, err
+		}
+		br = bytes.NewReader(b)
+	}
 
 	verifications := make([]*Verification, len(signatures))
 	for i, sig := range signatures {
-		v, err := verify(h, br, h[sig.i], sig.v)
+		// Use the bytes.Reader if there is one
+		var r io.Reader = bufr
+		if br != nil {
+			br.Seek(0, io.SeekStart)
+			r = br
+		}
+
+		v, err := verify(h, r, h[sig.i], sig.v)
 		if err != nil && !IsTempFail(err) && !IsPermFail(err) {
 			return verifications, err
 		}
