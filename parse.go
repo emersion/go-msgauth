@@ -99,7 +99,7 @@ var results = map[string]newResultFunc{
 // authentication service identifier and authentication results.
 func Parse(v string) (identifier string, results []Result, err error) {
 	parts := strings.Split(v, ";")
-	identifier = strings.TrimSpace(parts[0])
+	identifier = strings.TrimSpace(parts[0]) // TODO: parse version
 
 	for i := 1; i < len(parts); i++ {
 		s := strings.TrimSpace(parts[i])
