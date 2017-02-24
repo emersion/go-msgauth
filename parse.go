@@ -140,6 +140,7 @@ func (r *SPFResult) format() (ResultValue, map[string]string) {
 }
 
 type GenericResult struct {
+	Method string
 	Value ResultValue
 	Params map[string]string
 }
@@ -151,10 +152,6 @@ func (r *GenericResult) parse(value ResultValue, params map[string]string) {
 
 func (r *GenericResult) format() (ResultValue, map[string]string) {
 	return r.Value, r.Params
-}
-
-func newGenericResult() Result {
-	return new(GenericResult)
 }
 
 type newResultFunc func() Result
@@ -230,10 +227,17 @@ func parseResult(s string) (Result, error) {
 	}
 
 	newResult, ok := results[method]
-	if !ok {
-		newResult = newGenericResult
+
+	var r Result
+	if ok {
+		r = newResult()
+	} else {
+		r = &GenericResult{
+			Method: method,
+			Value: value,
+			Params: params,
+		}
 	}
-	r := newResult()
 
 	r.parse(value, params)
 	return r, nil

@@ -5,81 +5,32 @@ import (
 	"testing"
 )
 
-var parseTests = []struct{
-	value string
-	identifier string
-	results []Result
-}{
+var parseTests = []msgauthTest{
 	{
 		value: "",
 		identifier: "",
 		results: nil,
 	},
 	{
-		value: "example.org; none",
-		identifier: "example.org",
-		results: nil,
-	},
-	{
-		value: "example.com;\r\n" +
-			" spf=pass smtp.mailfrom=example.net",
+		value: "example.com; \r\n" +
+			" \t spf=pass smtp.mailfrom=example.net",
 		identifier: "example.com",
 		results: []Result{
 			&SPFResult{Value: ResultPass, From: "example.net"},
 		},
 	},
 	{
-		value: "example.com;\r\n" +
-			" auth=pass (cram-md5) smtp.auth=sender@example.com;\r\n" +
-			" spf=pass smtp.mailfrom=example.com",
+		value: "example.com;" +
+			" auth=pass (cram-md5) smtp.auth=sender@example.com;",
 		identifier: "example.com",
 		results: []Result{
 			&AuthResult{Value: ResultPass, Auth: "sender@example.com"},
-			&SPFResult{Value: ResultPass, From: "example.com"},
-		},
-	},
-	{
-		value: "example.com;\r\n" +
-			" sender-id=pass header.from=example.com",
-		identifier: "example.com",
-		results: []Result{
-			&SenderIDResult{Value: ResultPass, HeaderKey: "from", HeaderValue: "example.com"},
-		},
-	},
-	{
-		value: "example.com;\r\n" +
-			" sender-id=hardfail header.from=example.com;\r\n" +
-			" dkim=pass (good signature) header.i=sender@example.com",
-		identifier: "example.com",
-		results: []Result{
-			&SenderIDResult{Value: ResultHardFail, HeaderKey: "from", HeaderValue: "example.com"},
-			&DKIMResult{Value: ResultPass, Identifier: "sender@example.com"},
-		},
-	},
-	{
-		value: "example.com;\r\n" +
-			" auth=pass (cram-md5) smtp.auth=sender@example.com;\r\n" +
-			" spf=hardfail smtp.mailfrom=example.com",
-		identifier: "example.com",
-		results: []Result{
-			&AuthResult{Value: ResultPass, Auth: "sender@example.com"},
-			&SPFResult{Value: ResultHardFail, From: "example.com"},
-		},
-	},
-	{
-		value: "example.com;\r\n" +
-			" dkim=pass (good signature) header.i=@mail-router.example.net;\r\n" +
-			" dkim=fail (bad signature) header.i=@newyork.example.com",
-		identifier: "example.com",
-		results: []Result{
-			&DKIMResult{Value: ResultPass, Identifier: "@mail-router.example.net"},
-			&DKIMResult{Value: ResultFail, Identifier: "@newyork.example.com"},
 		},
 	},
 }
 
 func TestParse(t *testing.T) {
-	for _, test := range parseTests {
+	for _, test := range append(msgauthTests, parseTests...) {
 		identifier, results, err := Parse(test.value)
 		if err != nil {
 			t.Errorf("Excpected no error when parsing header, got: %v", err)
