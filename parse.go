@@ -22,17 +22,42 @@ const (
 )
 
 // Result is an authentication result.
-type Result interface {}
+type Result interface {
+	parse(value ResultValue, params map[string]string)
+	format() (value ResultValue, params map[string]string)
+}
 
 type AuthResult struct {
 	Value ResultValue
 	Auth string
 }
 
+func (r *AuthResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.Auth = params["smtp.auth"]
+}
+
+func (r *AuthResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{"smtp.auth": r.Auth}
+}
+
 type DKIMResult struct {
 	Value ResultValue
 	Domain string
 	Identifier string
+}
+
+func (r *DKIMResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.Domain = params["header.d"]
+	r.Identifier = params["header.i"]
+}
+
+func (r *DKIMResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{
+		"header.d": r.Domain,
+		"header.i": r.Identifier,
+	}
 }
 
 type DomainKeysResult struct {
@@ -42,9 +67,33 @@ type DomainKeysResult struct {
 	Sender string
 }
 
+func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.Domain = params["header.d"]
+	r.From = params["header.from"]
+	r.Sender = params["header.sender"]
+}
+
+func (r *DomainKeysResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{
+		"header.d": r.Domain,
+		"header.from": r.From,
+		"header.sender": r.Sender,
+	}
+}
+
 type IPRevResult struct {
 	Value ResultValue
 	IP string
+}
+
+func (r *IPRevResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.IP = params["policy.iprev"]
+}
+
+func (r *IPRevResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{"policy.iprev": r.IP}
 }
 
 type SenderIDResult struct {
@@ -53,45 +102,81 @@ type SenderIDResult struct {
 	HeaderValue string
 }
 
+func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+
+	for k, v := range params {
+		if strings.HasPrefix(k, "header.") {
+			r.HeaderKey = strings.TrimPrefix(k, "header.")
+			r.HeaderValue = v
+			break
+		}
+	}
+}
+
+func (r *SenderIDResult) format() (value ResultValue, params map[string]string) {
+	return r.Value, map[string]string{
+		"header."+strings.ToLower(r.HeaderKey): r.HeaderValue,
+	}
+}
+
 type SPFResult struct {
 	Value ResultValue
 	From string
 	Helo string
 }
 
-type unknownResult struct {
+func (r *SPFResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.From = params["smtp.mailfrom"]
+	r.Helo = params["smtp.helo"]
+}
+
+func (r *SPFResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{
+		"smtp.mailfrom": r.From,
+		"smtp.helo": r.Helo,
+	}
+}
+
+type GenericResult struct {
 	Value ResultValue
 	Params map[string]string
 }
 
-type newResultFunc func(v ResultValue, params map[string]string) Result
+func (r *GenericResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.Params = params
+}
+
+func (r *GenericResult) format() (ResultValue, map[string]string) {
+	return r.Value, r.Params
+}
+
+func newGenericResult() Result {
+	return new(GenericResult)
+}
+
+type newResultFunc func() Result
 
 var results = map[string]newResultFunc{
-	"auth": func(v ResultValue, params map[string]string) Result {
-		return &AuthResult{Value: v, Auth: params["smtp.auth"]}
+	"auth": func() Result {
+		return new(AuthResult)
 	},
-	"dkim": func(v ResultValue, params map[string]string) Result {
-		return &DKIMResult{Value: v, Domain: params["header.d"], Identifier: params["header.i"]}
+	"dkim": func() Result {
+		return new(DKIMResult)
 	},
-	"domainkeys": func(v ResultValue, params map[string]string) Result {
-		return &DomainKeysResult{Value: v, Domain: params["header.d"], From: params["header.from"], Sender: params["header.sender"]}
+	"domainkeys": func() Result {
+		return new(DomainKeysResult)
 	},
-	"iprev": func(v ResultValue, params map[string]string) Result {
-		return &IPRevResult{Value: v, IP: params["policy.iprev"]}
+	"iprev": func() Result {
+		return new(IPRevResult)
 	},
-	"sender-id": func(v ResultValue, params map[string]string) Result {
-		result := &SenderIDResult{Value: v}
-		for k, v := range params {
-			if strings.HasPrefix(k, "header.") {
-				result.HeaderKey = strings.TrimPrefix(k, "header.")
-				result.HeaderValue = v
-				break
-			}
-		}
-		return result
+	"sender-id": func() Result {
+		return new(SenderIDResult)
 	},
-	"spf": func(v ResultValue, params map[string]string) Result {
-		return &SPFResult{Value: v, From: params["smtp.mailfrom"], Helo: params["smtp.helo"]}
+	"spf": func() Result {
+		return new(SPFResult)
 	},
 }
 
@@ -146,10 +231,12 @@ func parseResult(s string) (Result, error) {
 
 	newResult, ok := results[method]
 	if !ok {
-		return &unknownResult{Value: value, Params: params}, nil
+		newResult = newGenericResult
 	}
+	r := newResult()
 
-	return newResult(value, params), nil
+	r.parse(value, params)
+	return r, nil
 }
 
 func parseParam(s string) (k string, v string, err error) {
