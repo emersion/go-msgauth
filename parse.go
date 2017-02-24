@@ -5,9 +5,10 @@ import (
 	"strings"
 )
 
+// ResultValue is an authentication result value, as defined in RFC 5451 section
+// 6.3.
 type ResultValue string
 
-// Authentication result values, as defined in RFC 5451 section 6.3.
 const (
 	ResultNone ResultValue = "none"
 	ResultPass = "pass"
@@ -20,6 +21,7 @@ const (
 	ResultSoftFail = "softfail"
 )
 
+// Result is an authentication result.
 type Result interface {}
 
 type AuthResult struct {
@@ -31,6 +33,13 @@ type DKIMResult struct {
 	Value ResultValue
 	Domain string
 	Identifier string
+}
+
+type DomainKeysResult struct {
+	Value ResultValue
+	Domain string
+	From string
+	Sender string
 }
 
 type IPRevResult struct {
@@ -64,7 +73,9 @@ var results = map[string]newResultFunc{
 	"dkim": func(v ResultValue, params map[string]string) Result {
 		return &DKIMResult{Value: v, Domain: params["header.d"], Identifier: params["header.i"]}
 	},
-	"domainkeys": nil, // TODO
+	"domainkeys": func(v ResultValue, params map[string]string) Result {
+		return &DomainKeysResult{Value: v, Domain: params["header.d"], From: params["header.from"], Sender: params["header.sender"]}
+	},
 	"iprev": func(v ResultValue, params map[string]string) Result {
 		return &IPRevResult{Value: v, IP: params["policy.iprev"]}
 	},
@@ -84,7 +95,9 @@ var results = map[string]newResultFunc{
 	},
 }
 
-func parse(v string) (identifier string, results []Result, err error) {
+// Parse parses the provided Authentication-Results header field. It returns the
+// authentication service identifier and authentication results.
+func Parse(v string) (identifier string, results []Result, err error) {
 	parts := strings.Split(v, ";")
 	identifier = strings.TrimSpace(parts[0])
 
@@ -119,7 +132,7 @@ func parseResult(s string) (Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	method, value := k, ResultValue(v)
+	method, value := k, ResultValue(strings.ToLower(v))
 
 	params := make(map[string]string)
 	for i := 1; i < len(parts); i++ {
@@ -144,5 +157,5 @@ func parseParam(s string) (k string, v string, err error) {
 	if len(kv) != 2 {
 		return "", "", errors.New("msgauth: malformed authentication method and value")
 	}
-	return strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1]), nil
+	return strings.ToLower(strings.TrimSpace(kv[0])), strings.TrimSpace(kv[1]), nil
 }

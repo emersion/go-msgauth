@@ -80,7 +80,7 @@ var parseTests = []struct{
 
 func TestParse(t *testing.T) {
 	for _, test := range parseTests {
-		identifier, results, err := parse(test.value)
+		identifier, results, err := Parse(test.value)
 		if err != nil {
 			t.Errorf("Excpected no error when parsing header, got: %v", err)
 		} else if test.identifier != identifier {
