@@ -214,10 +214,8 @@ func Parse(v string) (identifier string, results []Result, err error) {
 func parseResult(s string) (Result, error) {
 	// TODO: ignore header comments in parenthesis
 
-	// TODO: split on \t too?
-	parts := strings.Split(s, " ")
-
-	if parts[0] == "none" {
+	parts := strings.Fields(s)
+	if len(parts) == 0 || parts[0] == "none" {
 		return nil, nil
 	}
 
