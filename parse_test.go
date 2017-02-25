@@ -12,6 +12,11 @@ var parseTests = []msgauthTest{
 		results: nil,
 	},
 	{
+		value: "example.com 1; none",
+		identifier: "example.com",
+		results: nil,
+	},
+	{
 		value: "example.com; \r\n" +
 			" \t spf=pass smtp.mailfrom=example.net",
 		identifier: "example.com",
@@ -33,7 +38,7 @@ func TestParse(t *testing.T) {
 	for _, test := range append(msgauthTests, parseTests...) {
 		identifier, results, err := Parse(test.value)
 		if err != nil {
-			t.Errorf("Excpected no error when parsing header, got: %v", err)
+			t.Errorf("Expected no error when parsing header, got: %v", err)
 		} else if test.identifier != identifier {
 			t.Errorf("Expected identifier to be %q, but got %q", test.identifier, identifier)
 		} else if len(test.results) != len(results) {

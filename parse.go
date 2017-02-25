@@ -3,6 +3,7 @@ package msgauth
 import (
 	"errors"
 	"strings"
+	"unicode"
 )
 
 // ResultValue is an authentication result value, as defined in RFC 5451 section
@@ -181,7 +182,17 @@ var results = map[string]newResultFunc{
 // authentication service identifier and authentication results.
 func Parse(v string) (identifier string, results []Result, err error) {
 	parts := strings.Split(v, ";")
-	identifier = strings.TrimSpace(parts[0]) // TODO: parse version
+
+	identifier = strings.TrimSpace(parts[0])
+	i := strings.IndexFunc(identifier, unicode.IsSpace)
+	if i > 0 {
+		version := strings.TrimSpace(identifier[i:])
+		if version != "1" {
+			return "", nil, errors.New("msgauth: unsupported version")
+		}
+
+		identifier = identifier[:i]
+	}
 
 	for i := 1; i < len(parts); i++ {
 		s := strings.TrimSpace(parts[i])
