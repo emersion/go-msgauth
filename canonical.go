@@ -117,12 +117,8 @@ func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 			if len(c.crlfBuf) > 0 {
 				canonical = append(canonical, c.crlfBuf...)
 				c.crlfBuf = nil
-
-				if len(c.wspBuf) > 0 {
-					canonical = append(canonical, c.wspBuf...)
-					c.wspBuf = nil
-				}
-			} else if len(c.wspBuf) > 0 {
+			}
+			if len(c.wspBuf) > 0 {
 				canonical = append(canonical, ' ')
 				c.wspBuf = nil
 			}
@@ -135,7 +131,10 @@ func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 		c.written = true
 	}
 
-	return c.w.Write(canonical)
+	if _, err := c.w.Write(canonical); err != nil {
+		return len(b), err
+	}
+	return len(b), nil
 }
 
 func (c *relaxedBodyCanonicalizer) Close() error {
