@@ -131,10 +131,8 @@ func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 		c.written = true
 	}
 
-	if _, err := c.w.Write(canonical); err != nil {
-		return len(b), err
-	}
-	return len(b), nil
+	_, err := c.w.Write(canonical)
+	return len(b), err
 }
 
 func (c *relaxedBodyCanonicalizer) Close() error {
