@@ -119,7 +119,7 @@ var relaxedCanonicalizerBodyTests = []struct {
 	},
 	{
 		"Hey\r\n \t you!\r\n",
-		"Hey\r\n \t you!\r\n",
+		"Hey\r\n you!\r\n",
 	},
 	{
 		"Hey\r\n \t \r\n \r\n",
