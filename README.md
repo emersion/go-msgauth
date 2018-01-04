@@ -10,8 +10,8 @@ A Go library to create and parse [Authentication-Results header fields](https://
 ```go
 // Format
 results := []msgauth.Result{
-	&msgauth.SPFResult{Value: ResultPass, From: "example.net"},
-	&msgauth.AuthResult{Value: ResultPass, Auth: "sender@example.com"},
+	&msgauth.SPFResult{Value: msgauth.ResultPass, From: "example.net"},
+	&msgauth.AuthResult{Value: msgauth.ResultPass, Auth: "sender@example.com"},
 }
 s := msgauth.Format("example.com", results)
 log.Println(s)
