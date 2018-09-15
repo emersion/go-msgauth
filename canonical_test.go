@@ -35,7 +35,7 @@ var simpleCanonicalizerBodyTests = []struct {
 	},
 	{
 		[]string{"What about\nLF endings?\n\n"},
-		"What about\nLF endings?\n\n\r\n",
+		"What about\r\nLF endings?\r\n",
 	},
 	{
 		[]string{"\r\n", "\r", "\n"},
@@ -47,7 +47,7 @@ var simpleCanonicalizerBodyTests = []struct {
 	},
 	{
 		[]string{"\r\n", "\r", "\n", "hey\n", "\n"},
-		"\r\n\r\nhey\n\n\r\n",
+		"\r\n\r\nhey\r\n",
 	},
 }
 
