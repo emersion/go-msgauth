@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"net"
+	"strings"
 )
 
 type verifier interface {
@@ -48,14 +49,10 @@ func queryDNSTXT(domain, selector string) (*queryResult, error) {
 		return nil, permFailError("no key for signature: " + err.Error())
 	}
 
-	var res *queryResult
-	for _, txt := range txts {
-		res, err = parsePublicKey(txt)
-		if err == nil {
-			return res, err
-		}
-	}
-	return res, err
+	// Long keys are split in multiple parts
+	txt := strings.Join(txts, "")
+
+	return parsePublicKey(txt)
 }
 
 func parsePublicKey(s string) (*queryResult, error) {
