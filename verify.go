@@ -1,8 +1,8 @@
 package dkim
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"

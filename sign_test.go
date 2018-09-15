@@ -85,11 +85,11 @@ func TestSignAndVerify(t *testing.T) {
 func TestSignAndVerify_relaxed(t *testing.T) {
 	r := strings.NewReader(mailString)
 	options := &SignOptions{
-		Domain:   "example.org",
-		Selector: "brisbane",
-		Signer:   testPrivateKey,
+		Domain:                 "example.org",
+		Selector:               "brisbane",
+		Signer:                 testPrivateKey,
 		HeaderCanonicalization: "relaxed",
-		BodyCanonicalization: "relaxed",
+		BodyCanonicalization:   "relaxed",
 	}
 
 	var b bytes.Buffer

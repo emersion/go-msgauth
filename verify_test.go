@@ -1,9 +1,9 @@
 package dkim
 
 import (
+	"reflect"
 	"strings"
 	"testing"
-	"reflect"
 )
 
 const verifiedMailString = `DKIM-Signature: v=1; a=rsa-sha256; s=brisbane; d=example.com;
@@ -31,7 +31,7 @@ Joe.
 `
 
 var testVerification = &Verification{
-	Domain: "example.com",
+	Domain:     "example.com",
 	Identifier: "joe@football.example.com",
 	HeaderKeys: []string{"Received", "From", "To", "Subject", "Date", "Message-ID"},
 	BodyLength: -1,
