@@ -27,26 +27,22 @@ type simpleBodyCanonicalizer struct {
 }
 
 func (c *simpleBodyCanonicalizer) Write(b []byte) (int, error) {
+	written := len(b)
 	b = append(c.crlfBuf, b...)
 
 	end := len(b)
-	for end > 0 {
-		if ch := b[end-1]; ch != '\r' && ch != '\n' {
-			break
-		}
+	// If it ends with \r, maybe the next write will begin with \n
+	if end > 0 && b[end-1] == '\r' {
 		end--
 	}
-	if end == 0 {
-		c.crlfBuf = b
-		return len(b), nil
-	}
-
-	if end > 0 {
-		n, err := c.w.Write(c.crlfBuf)
-		c.crlfBuf = c.crlfBuf[n:]
-		if err != nil {
-			return 0, err
+	// Keep all \r\n sequences
+	for end >= 2 {
+		prev := b[end-2]
+		cur := b[end-1]
+		if prev != '\r' || cur != '\n' {
+			break
 		}
+		end -= 2
 	}
 
 	c.crlfBuf = b[end:]
@@ -55,10 +51,18 @@ func (c *simpleBodyCanonicalizer) Write(b []byte) (int, error) {
 	if end > 0 {
 		_, err = c.w.Write(b[:end])
 	}
-	return len(b), err
+	return written, err
 }
 
 func (c *simpleBodyCanonicalizer) Close() error {
+	// Flush crlfBuf if it ends with a single \r (without a matching \n)
+	if len(c.crlfBuf) > 0 && c.crlfBuf[len(c.crlfBuf) - 1] == '\r' {
+		if _, err := c.w.Write(c.crlfBuf); err != nil {
+			return err
+		}
+	}
+	c.crlfBuf = nil
+
 	if _, err := c.w.Write([]byte(crlf)); err != nil {
 		return err
 	}

@@ -6,32 +6,48 @@ import (
 )
 
 var simpleCanonicalizerBodyTests = []struct {
-	original  string
+	original  []string
 	canonical string
 }{
 	{
-		"",
+		[]string{""},
 		"\r\n",
 	},
 	{
-		"\r\n",
-		"\r\n",
-	},
-	{
-		"\r\n\r\n\r\n",
+		[]string{"\r\n"},
 		"\r\n",
 	},
 	{
-		"Hey\r\n\r\n",
+		[]string{"\r\n\r\n\r\n"},
+		"\r\n",
+	},
+	{
+		[]string{"Hey\r\n\r\n"},
 		"Hey\r\n",
 	},
 	{
-		"Hey\r\nHow r u?\r\n\r\n\r\n",
+		[]string{"Hey\r\nHow r u?\r\n\r\n\r\n"},
 		"Hey\r\nHow r u?\r\n",
 	},
 	{
-		"Hey\r\n\r\nHow r u?",
+		[]string{"Hey\r\n\r\nHow r u?"},
 		"Hey\r\n\r\nHow r u?\r\n",
+	},
+	{
+		[]string{"What about\nLF endings?\n\n"},
+		"What about\nLF endings?\n\n\r\n",
+	},
+	{
+		[]string{"\r\n", "\r", "\n"},
+		"\r\n",
+	},
+	{
+		[]string{"\r\n", "\r"},
+		"\r\n\r\r\n",
+	},
+	{
+		[]string{"\r\n", "\r", "\n", "hey\n", "\n"},
+		"\r\n\r\nhey\n\n\r\n",
 	},
 }
 
@@ -43,9 +59,13 @@ func TestSimpleCanonicalizer_CanonicalBody(t *testing.T) {
 		b.Reset()
 
 		wc := c.CanonicalizeBody(&b)
-		if _, err := wc.Write([]byte(test.original)); err != nil {
-			t.Errorf("Expected no error while writing to simple body canonicalizer, got: %v", err)
-		} else if err := wc.Close(); err != nil {
+		for _, chunk := range test.original {
+			if _, err := wc.Write([]byte(chunk)); err != nil {
+				t.Fatalf("Expected no error while writing to simple body canonicalizer, got: %v", err)
+			}
+		}
+
+		if err := wc.Close(); err != nil {
 			t.Errorf("Expected no error while closing simple body canonicalizer, got: %v", err)
 		} else if s := b.String(); s != test.canonical {
 			t.Errorf("Expected canonical body for %q to be %q, but got %q", test.original, test.canonical, s)
