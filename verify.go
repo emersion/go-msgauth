@@ -286,7 +286,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	// Check body hash
 	hasher := hash.New()
 	var w io.Writer = hasher
-	if bodyLen > 0 {
+	if bodyLen >= 0 {
 		w = &limitedWriter{W: w, N: bodyLen}
 	}
 	wc := canonicalizers[bodyCan].CanonicalizeBody(w)
