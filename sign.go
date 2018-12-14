@@ -190,7 +190,9 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	}
 
 	params["b"] = ""
-	sigField := strings.TrimRight(formatSignature(params), crlf)
+	sigField := formatSignature(params)
+	sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
+	sigField = strings.TrimRight(sigField, crlf)
 	if _, err := hasher.Write([]byte(sigField)); err != nil {
 		return err
 	}
