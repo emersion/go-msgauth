@@ -217,8 +217,20 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 }
 
 func formatSignature(params map[string]string) string {
-	// TODO: fold lines
-	return "DKIM-Signature: " + formatHeaderParams(params) + crlf
+	var fold strings.Builder
+	sig := "DKIM-Signature: " + formatHeaderParams(params) + crlf
+	buf := bytes.NewBufferString(sig)
+	line := make([]byte, 75) // 78 - len("\r\n\s")
+	first := true
+	for len, err := buf.Read(line); err != io.EOF; len, err = buf.Read(line) {
+		if first {
+			first = false
+		} else {
+			fold.WriteString("\r\n ")
+		}
+		fold.Write(line[:len])
+	}
+	return fold.String()
 }
 
 func formatTagList(l []string) string {
