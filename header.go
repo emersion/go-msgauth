@@ -74,10 +74,18 @@ func parseHeaderParams(s string) (map[string]string, error) {
 
 func formatHeaderParams(params map[string]string) string {
 	keys := make([]string, 0, len(params))
+	found := false
 	for k := range params {
-		keys = append(keys, k)
+		if k == "b" {
+			found = true
+		} else {
+			keys = append(keys, k)
+		}
 	}
 	sort.Strings(keys)
+	if found {
+		keys = append(keys, "b")
+	}
 
 	var s string
 	first := true
