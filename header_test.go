@@ -69,3 +69,36 @@ func TestParseHeaderParams_malformed(t *testing.T) {
 		t.Error("Expected an error when parsing malformed header params")
 	}
 }
+
+func TestHeaderPicker_Pick(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		predefinedHeaders := []string{"From", "to"}
+		headers := header{
+			"from: fst",
+			"To: snd",
+		}
+		picker := newHeaderPicker(headers)
+		for i, k := range predefinedHeaders {
+			if headers[i] != picker.Pick(k) {
+				t.Errorf("Parameter %s not found in headers %s", k, headers)
+			}
+		}
+	})
+	t.Run("a few same headers", func(t *testing.T) {
+		predefinedHeaders := []string{"to", "to", "to"}
+		// same headers must returns from Bottom to Top
+		headers := header{
+			"To: trd",
+			"To: snd",
+			"To: fst",
+		}
+		var lh = len(headers) - 1
+		picker := newHeaderPicker(headers)
+		for i, k := range predefinedHeaders {
+			if headers[lh-i] != picker.Pick(k) {
+				t.Errorf("Parameter %s not found in headers %s", k, headers)
+			}
+		}
+
+	})
+}
