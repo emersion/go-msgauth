@@ -86,8 +86,8 @@ type signature struct {
 	v string
 }
 
-// Verify checks if a message's signatures are valid. It returns on verification
-// per signature.
+// Verify checks if a message's signatures are valid. It returns one
+// verification per signature.
 func Verify(r io.Reader) ([]*Verification, error) {
 	// TODO: be able to specify options such as the max number of signatures to
 	// check
