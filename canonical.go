@@ -70,7 +70,7 @@ func (c *simpleBodyCanonicalizer) Write(b []byte) (int, error) {
 
 func (c *simpleBodyCanonicalizer) Close() error {
 	// Flush crlfBuf if it ends with a single \r (without a matching \n)
-	if len(c.crlfBuf) > 0 && c.crlfBuf[len(c.crlfBuf) - 1] == '\r' {
+	if len(c.crlfBuf) > 0 && c.crlfBuf[len(c.crlfBuf)-1] == '\r' {
 		if _, err := c.w.Write(c.crlfBuf); err != nil {
 			return err
 		}

@@ -16,11 +16,11 @@ import (
 )
 
 type session struct {
-	identity string
+	identity      string
 	authResDelete []int
-	done     <-chan error
-	verifs   []*dkim.Verification // only valid after done is closed
-	pw       *io.PipeWriter
+	done          <-chan error
+	verifs        []*dkim.Verification // only valid after done is closed
+	pw            *io.PipeWriter
 }
 
 func newSession(identity string) *session {
