@@ -3,6 +3,7 @@ package dkim
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"net/textproto"
 	"sort"
@@ -20,7 +21,7 @@ func readHeader(r *bufio.Reader) (header, error) {
 	for {
 		l, err := tr.ReadLine()
 		if err != nil {
-			return h, err
+			return h, fmt.Errorf("failed to read header: %v", err)
 		}
 
 		if len(l) == 0 {

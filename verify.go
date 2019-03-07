@@ -90,7 +90,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	var signatures []*signature
 	for i, kv := range h {
 		k, v := parseHeaderField(kv)
-		if strings.ToLower(k) == "dkim-signature" {
+		if strings.EqualFold(k, "Dkim-Signature") {
 			signatures = append(signatures, &signature{i, v})
 		}
 	}
