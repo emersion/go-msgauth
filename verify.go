@@ -22,7 +22,8 @@ func (err permFailError) Error() string {
 }
 
 // IsPermFail returns true if the error returned by Verify is a permanent
-// failure.
+// failure. A permanent failure is for instance a missing required field or a
+// malformed header.
 func IsPermFail(err error) bool {
 	_, ok := err.(permFailError)
 	return ok
@@ -38,6 +39,18 @@ func (err tempFailError) Error() string {
 // failure.
 func IsTempFail(err error) bool {
 	_, ok := err.(tempFailError)
+	return ok
+}
+
+type failError string
+
+func (err failError) Error() string {
+	return "dkim: " + string(err)
+}
+
+// isFail returns true if the error returned by Verify is a signature error.
+func isFail(err error) bool {
+	_, ok := err.(failError)
 	return ok
 }
 
@@ -115,7 +128,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 		}
 
 		v, err := verify(h, r, h[sig.i], sig.v)
-		if err != nil && !IsTempFail(err) && !IsPermFail(err) {
+		if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
 			return verifications, err
 		}
 
@@ -297,7 +310,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 		return verif, err
 	}
 	if subtle.ConstantTimeCompare(hasher.Sum(nil), bodyHashed) != 1 {
-		return verif, permFailError("body hash did not verify")
+		return verif, failError("body hash did not verify")
 	}
 
 	// Compute data hash
@@ -324,7 +337,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 
 	// Check signature
 	if err := res.Verifier.Verify(hash, hashed, sig); err != nil {
-		return verif, permFailError("signature did not verify: " + err.Error())
+		return verif, failError("signature did not verify: " + err.Error())
 	}
 
 	return verif, nil
