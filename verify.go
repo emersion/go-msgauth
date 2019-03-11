@@ -353,16 +353,16 @@ func parseTagList(s string) []string {
 	return tags
 }
 
-func parseCanonicalization(s string) (headerCan, bodyCan string) {
-	headerCan = "simple"
-	bodyCan = "simple"
+func parseCanonicalization(s string) (headerCan, bodyCan Canonicalization) {
+	headerCan = CanonicalizationSimple
+	bodyCan = CanonicalizationSimple
 
 	cans := strings.SplitN(s, "/", 2)
 	if cans[0] != "" {
-		headerCan = cans[0]
+		headerCan = Canonicalization(cans[0])
 	}
 	if len(cans) > 1 {
-		bodyCan = cans[1]
+		bodyCan = Canonicalization(cans[1])
 	}
 	return
 }

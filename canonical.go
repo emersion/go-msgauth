@@ -5,14 +5,22 @@ import (
 	"strings"
 )
 
+// Canonicalization is a canonicalization algorithm.
+type Canonicalization string
+
+const (
+	CanonicalizationSimple Canonicalization = "simple"
+	CanonicalizationRelaxed = "relaxed"
+)
+
 type canonicalizer interface {
 	CanonicalizeHeader(s string) string
 	CanonicalizeBody(w io.Writer) io.WriteCloser
 }
 
-var canonicalizers = map[string]canonicalizer{
-	"simple":  new(simpleCanonicalizer),
-	"relaxed": new(relaxedCanonicalizer),
+var canonicalizers = map[Canonicalization]canonicalizer{
+	CanonicalizationSimple:  new(simpleCanonicalizer),
+	CanonicalizationRelaxed: new(relaxedCanonicalizer),
 }
 
 // Fix any \n without a matching \r

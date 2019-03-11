@@ -36,8 +36,8 @@ type SignOptions struct {
 	Hash crypto.Hash
 
 	// Header and body canonicalization algorithms.
-	HeaderCanonicalization string
-	BodyCanonicalization   string
+	HeaderCanonicalization Canonicalization
+	BodyCanonicalization   Canonicalization
 
 	// A list of header fields to include in the signature. If nil, all headers
 	// will be included. If not nil, "From" MUST be in the list.
@@ -69,7 +69,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 
 	headerCan := options.HeaderCanonicalization
 	if headerCan == "" {
-		headerCan = "simple"
+		headerCan = CanonicalizationSimple
 	}
 	if _, ok := canonicalizers[headerCan]; !ok {
 		return fmt.Errorf("dkim: unknown header canonicalization %q", headerCan)
@@ -77,7 +77,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 
 	bodyCan := options.BodyCanonicalization
 	if bodyCan == "" {
-		bodyCan = "simple"
+		bodyCan = CanonicalizationSimple
 	}
 	if _, ok := canonicalizers[bodyCan]; !ok {
 		return fmt.Errorf("dkim: unknown body canonicalization %q", bodyCan)
@@ -143,7 +143,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		"v":  "1",
 		"a":  keyAlgo + "-" + hashAlgo,
 		"bh": base64.StdEncoding.EncodeToString(bodyHashed),
-		"c":  headerCan + "/" + bodyCan,
+		"c":  string(headerCan) + "/" + string(bodyCan),
 		"d":  options.Domain,
 		//"l": "", // TODO
 		"s": options.Selector,
