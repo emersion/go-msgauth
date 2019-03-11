@@ -124,7 +124,7 @@ func parsePublicKey(s string) (*queryResult, error) {
 		res.KeyAlgo = "rsa"
 	case "ed25519":
 		if len(b) != ed25519.PublicKeySize {
-			return nil, permFailError(fmt.Sprintf("invalid Ed25519 public key size: %v", len(b)))
+			return nil, permFailError(fmt.Sprintf("invalid Ed25519 public key size: %v bytes", len(b)))
 		}
 		ed25519Pub := ed25519.PublicKey(b)
 		res.Verifier = ed25519Verifier{ed25519Pub}
