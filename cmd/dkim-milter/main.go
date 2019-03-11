@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/textproto"
 	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/emersion/go-dkim"
@@ -160,7 +161,7 @@ func main() {
 		var err error
 		identity, err = os.Hostname()
 		if err != nil {
-			log.Fatal("Failed to read hostname:", err)
+			log.Fatal("Failed to read hostname: ", err)
 		}
 	}
 
@@ -180,11 +181,21 @@ func main() {
 
 	ln, err := net.Listen(listenNetwork, listenAddr)
 	if err != nil {
-		log.Fatal("Failed to setup listener:", err)
+		log.Fatal("Failed to setup listener: ", err)
 	}
 
+	// Closing the listener will unlink the unix socket, if any
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, os.Kill)
+	go func() {
+		<-sigs
+		if err := s.Close(); err != nil {
+			log.Fatal("Failed to close server: ", err)
+		}
+	}()
+
 	log.Println("Milter listening at", listenURI)
-	if err := s.Serve(ln); err != nil {
-		log.Fatal("Failed to serve:", err)
+	if err := s.Serve(ln); err != nil && err != milter.ErrServerClosed {
+		log.Fatal("Failed to serve: ", err)
 	}
 }
