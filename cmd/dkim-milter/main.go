@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/emersion/go-dkim"
 	"github.com/emersion/go-milter"
@@ -194,7 +195,7 @@ func main() {
 
 	// Closing the listener will unlink the unix socket, if any
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, os.Kill)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
 		if err := s.Close(); err != nil {
