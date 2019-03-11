@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"regexp"
@@ -243,7 +244,9 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	var hash crypto.Hash
 	switch hashAlgo {
 	case "sha1":
-		hash = crypto.SHA1
+		// RFC 8301 section 3.1: rsa-sha1 MUST NOT be used for signing or
+		// verifying.
+		return verif, permFailError(fmt.Sprintf("hash algorithm too weak: %v", hashAlgo))
 	case "sha256":
 		hash = crypto.SHA256
 	default:
