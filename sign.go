@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 var randReader io.Reader = rand.Reader
@@ -87,6 +89,8 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	switch options.Signer.Public().(type) {
 	case *rsa.PublicKey:
 		keyAlgo = "rsa"
+	case ed25519.PublicKey:
+		keyAlgo = "ed25519"
 	default:
 		return fmt.Errorf("dkim: unsupported key algorithm %T", options.Signer.Public())
 	}
