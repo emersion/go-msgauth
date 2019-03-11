@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"fmt"
 	"net"
 	"strings"
 )
@@ -87,6 +88,11 @@ func parsePublicKey(s string) (*queryResult, error) {
 		rsaPub, ok := pub.(*rsa.PublicKey)
 		if !ok {
 			return nil, permFailError("key syntax error: not an RSA public key")
+		}
+		// RFC 8301 section 3.2: verifiers MUST NOT consider signatures using
+		// RSA keys of less than 1024 bits as valid signatures.
+		if rsaPub.Size() * 8 < 1024 {
+			return nil, permFailError(fmt.Sprintf("key is too short: want 1024 bits, has %v bits", rsaPub.Size() * 8))
 		}
 		res.Verifier = &rsaVerifier{rsaPub}
 		res.KeyAlgo = "rsa"
