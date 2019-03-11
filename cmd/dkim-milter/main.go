@@ -16,6 +16,16 @@ import (
 	"github.com/emersion/go-msgauth"
 )
 
+var identity string
+var listenURI string
+var verbose bool
+
+func init() {
+	flag.StringVar(&identity, "i", "", "Server identity (defaults to hostname)")
+	flag.StringVar(&listenURI, "l", "unix:///tmp/dkim-milter.sock", "Listen URI")
+	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
+}
+
 type session struct {
 	identity      string
 	authResDelete []int
@@ -106,7 +116,9 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 	}
 
 	if err := <-s.done; err != nil {
-		log.Printf("DKIM verification failed: %v", err)
+		if verbose {
+			log.Printf("DKIM verification failed: %v", err)
+		}
 		return milter.RespAccept, nil
 	}
 
@@ -119,8 +131,12 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 	}
 
 	for _, verif := range s.verifs {
-		if verif.Err != nil {
-			log.Printf("DKIM verification failed for %v: %v", verif.Domain, verif.Err)
+		if verbose {
+			if verif.Err != nil {
+				log.Printf("DKIM verification failed for %v: %v", verif.Domain, verif.Err)
+			} else {
+				log.Printf("DKIM verification succeded for %v", verif.Domain)
+			}
 		}
 
 		var val msgauth.ResultValue
@@ -144,14 +160,6 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 	v := msgauth.Format(s.identity, results)
 	err := m.InsertHeader(0, "Authentication-Results", v)
 	return milter.RespAccept, err
-}
-
-var identity string
-var listenURI string
-
-func init() {
-	flag.StringVar(&identity, "identity", "", "Server identity (defaults to hostname)")
-	flag.StringVar(&listenURI, "listen", "unix:///tmp/dkim-milter.sock", "Listen URI")
 }
 
 func main() {
