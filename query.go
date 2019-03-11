@@ -36,10 +36,18 @@ type queryResult struct {
 	Flags     []string
 }
 
+// QueryMethod is a DKIM query method.
+type QueryMethod string
+
+const (
+	// DNS TXT resource record (RR) lookup algorithm
+	QueryMethodDNSTXT QueryMethod = "dns/txt"
+)
+
 type queryFunc func(domain, selector string) (*queryResult, error)
 
-var queryMethods = map[string]queryFunc{
-	"dns/txt": queryDNSTXT,
+var queryMethods = map[QueryMethod]queryFunc{
+	QueryMethodDNSTXT: queryDNSTXT,
 }
 
 func queryDNSTXT(domain, selector string) (*queryResult, error) {

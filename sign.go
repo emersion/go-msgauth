@@ -49,7 +49,7 @@ type SignOptions struct {
 	Expiration time.Time
 
 	// A list of query methods used to retrieve the public key.
-	QueryMethods []string
+	QueryMethods []QueryMethod
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.
@@ -167,7 +167,11 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	}
 
 	if options.QueryMethods != nil {
-		params["q"] = formatTagList(options.QueryMethods)
+		methods := make([]string, len(options.QueryMethods))
+		for i, method := range options.QueryMethods {
+			methods[i] = string(method)
+		}
+		params["q"] = formatTagList(methods)
 	}
 
 	if !options.Expiration.IsZero() {

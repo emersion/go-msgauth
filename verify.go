@@ -203,13 +203,13 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 
 	// Query public key
 	// TODO: compute hash in parallel
-	methods := []string{"dns/txt"}
+	methods := []string{string(QueryMethodDNSTXT)}
 	if methodsStr, ok := params["q"]; ok {
 		methods = parseTagList(methodsStr)
 	}
 	var res *queryResult
 	for _, method := range methods {
-		if query, ok := queryMethods[method]; ok {
+		if query, ok := queryMethods[QueryMethod(method)]; ok {
 			res, err = query(params["d"], params["s"])
 			break
 		}
