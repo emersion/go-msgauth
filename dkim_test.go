@@ -3,8 +3,11 @@ package dkim
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 )
 
 const testPrivateKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
@@ -24,17 +27,25 @@ GMot/L2x0IYyMLAz6oLWh2hm7zwtb0CgOrPo1ke44hFYnfc=
 -----END RSA PRIVATE KEY-----
 `
 
+const testEd25519PrivateKeyBase64 = "nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A="
+
 var (
 	testPrivateKey *rsa.PrivateKey
+	testEd25519PrivateKey ed25519.PrivateKey
 )
 
 func init() {
 	block, _ := pem.Decode([]byte(testPrivateKeyPEM))
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	var err error
+	testPrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		panic(err)
 	}
-	testPrivateKey = key
+
+	testEd25519PrivateKey, err = base64.StdEncoding.DecodeString(testEd25519PrivateKeyBase64)
+	if err != nil {
+		panic(err)
+	}
 
 	now = func() time.Time {
 		return time.Unix(424242, 0)

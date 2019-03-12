@@ -153,7 +153,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 		return verif, permFailError("incompatible signature version")
 	}
 
-	verif.Domain = params["d"]
+	verif.Domain = stripWhitespace(params["d"])
 
 	for _, tag := range requiredTags {
 		if _, ok := params[tag]; !ok {
@@ -162,13 +162,13 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	}
 
 	if i, ok := params["i"]; ok {
-		if !strings.HasSuffix(i, "@"+params["d"]) && !strings.HasSuffix(i, "."+params["d"]) {
+		verif.Identifier = stripWhitespace(i)
+		if !strings.HasSuffix(verif.Identifier, "@"+verif.Domain) && !strings.HasSuffix(verif.Identifier, "."+verif.Domain) {
 			return verif, permFailError("domain mismatch")
 		}
 	} else {
-		params["i"] = "@" + params["d"]
+		verif.Identifier = "@" + verif.Domain
 	}
-	verif.Identifier = params["i"]
 
 	headerKeys := parseTagList(params["h"])
 	ok := false
@@ -210,7 +210,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	var res *queryResult
 	for _, method := range methods {
 		if query, ok := queryMethods[QueryMethod(method)]; ok {
-			res, err = query(params["d"], params["s"])
+			res, err = query(verif.Domain, stripWhitespace(params["s"]))
 			break
 		}
 	}
@@ -221,7 +221,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	}
 
 	// Parse algos
-	algos := strings.SplitN(params["a"], "-", 2)
+	algos := strings.SplitN(stripWhitespace(params["a"]), "-", 2)
 	if len(algos) != 2 {
 		return verif, permFailError("malformed algorithm name")
 	}
@@ -281,7 +281,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 
 	var bodyLen int64 = -1
 	if lenStr, ok := params["l"]; ok {
-		l, err := strconv.ParseInt(lenStr, 10, 64)
+		l, err := strconv.ParseInt(stripWhitespace(lenStr), 10, 64)
 		if err != nil {
 			return verif, permFailError("malformed body length: " + err.Error())
 		} else if l < 0 {
@@ -351,7 +351,7 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 func parseTagList(s string) []string {
 	tags := strings.Split(s, ":")
 	for i, t := range tags {
-		tags[i] = strings.TrimSpace(t)
+		tags[i] = stripWhitespace(t)
 	}
 	return tags
 }
@@ -360,7 +360,7 @@ func parseCanonicalization(s string) (headerCan, bodyCan Canonicalization) {
 	headerCan = CanonicalizationSimple
 	bodyCan = CanonicalizationSimple
 
-	cans := strings.SplitN(s, "/", 2)
+	cans := strings.SplitN(stripWhitespace(s), "/", 2)
 	if cans[0] != "" {
 		headerCan = Canonicalization(cans[0])
 	}
@@ -371,7 +371,7 @@ func parseCanonicalization(s string) (headerCan, bodyCan Canonicalization) {
 }
 
 func parseTime(s string) (time.Time, error) {
-	sec, err := strconv.ParseInt(s, 10, 64)
+	sec, err := strconv.ParseInt(stripWhitespace(s), 10, 64)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -379,13 +379,16 @@ func parseTime(s string) (time.Time, error) {
 }
 
 func decodeBase64String(s string) ([]byte, error) {
-	s = strings.Map(func(r rune) rune {
+	return base64.StdEncoding.DecodeString(stripWhitespace(s))
+}
+
+func stripWhitespace(s string) string {
+	return strings.Map(func(r rune) rune {
 		if unicode.IsSpace(r) {
 			return -1
 		}
 		return r
 	}, s)
-	return base64.StdEncoding.DecodeString(s)
 }
 
 func removeSignature(s string) string {
