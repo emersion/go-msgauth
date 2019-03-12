@@ -18,7 +18,7 @@ func init() {
 
 func queryTest(domain, selector string) (*queryResult, error) {
 	record := selector + "._domainkey." + domain
-	switch record  {
+	switch record {
 	case "brisbane._domainkey.example.com", "brisbane._domainkey.example.org", "test._domainkey.football.example.com":
 		return parsePublicKey(dnsPublicKey)
 	case "brisbane._domainkey.football.example.com":

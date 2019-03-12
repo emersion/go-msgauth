@@ -9,8 +9,8 @@ import (
 type Canonicalization string
 
 const (
-	CanonicalizationSimple Canonicalization = "simple"
-	CanonicalizationRelaxed = "relaxed"
+	CanonicalizationSimple  Canonicalization = "simple"
+	CanonicalizationRelaxed                  = "relaxed"
 )
 
 type canonicalizer interface {

@@ -30,7 +30,7 @@ GMot/L2x0IYyMLAz6oLWh2hm7zwtb0CgOrPo1ke44hFYnfc=
 const testEd25519PrivateKeyBase64 = "nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A="
 
 var (
-	testPrivateKey *rsa.PrivateKey
+	testPrivateKey        *rsa.PrivateKey
 	testEd25519PrivateKey ed25519.PrivateKey
 )
 
