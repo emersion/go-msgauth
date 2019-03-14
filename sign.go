@@ -25,19 +25,33 @@ type SignOptions struct {
 	// mail stream. Hence, the SDID value is used to form the query for the public
 	// key. The SDID MUST correspond to a valid DNS name under which the DKIM key
 	// record is published.
+	//
+	// This can't be empty.
 	Domain string
 	// The selector subdividing the namespace for the domain.
+	//
+	// This can't be empty.
 	Selector string
 	// The Agent or User Identifier (AUID) on behalf of which the SDID is taking
 	// responsibility.
+	//
+	// This is optional.
 	Identifier string
 
 	// The key used to sign the message.
+	//
+	// Supported Signer.Public() values are *rsa.PublicKey and
+	// ed25519.PublicKey.
 	Signer crypto.Signer
-	// The hash algorithm used to sign the message.
+	// The hash algorithm used to sign the message. If zero, a default hash will
+	// be chosen.
+	//
+	// The only supported hash algorithm is crypto.SHA256.
 	Hash crypto.Hash
 
 	// Header and body canonicalization algorithms.
+	//
+	// If empty, CanonicalizationSimple is used.
 	HeaderCanonicalization Canonicalization
 	BodyCanonicalization   Canonicalization
 
@@ -51,6 +65,8 @@ type SignOptions struct {
 	Expiration time.Time
 
 	// A list of query methods used to retrieve the public key.
+	//
+	// If nil, it is implicitly defined as QueryMethodDNSTXT.
 	QueryMethods []QueryMethod
 }
 
