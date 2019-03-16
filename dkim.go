@@ -6,3 +6,5 @@ import (
 )
 
 var now = time.Now
+
+const headerFieldName = "DKIM-Signature"

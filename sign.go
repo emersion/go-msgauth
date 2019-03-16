@@ -70,19 +70,35 @@ type SignOptions struct {
 	QueryMethods []QueryMethod
 }
 
-// Sign signs a message. It reads it from r and writes the signed version to w.
-func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
+// Signer generates a DKIM signature.
+//
+// The whole message header and body must be written to the Signer. Close should
+// always be called (either after the whole message has been written, or after
+// an error occured and the signer won't be used anymore). Close may return an
+// error in case signing fails.
+//
+// After a successful Close, Signature can be called to retrieve the
+// DKIM-Signature header field that the caller should prepend to the message.
+type Signer struct {
+	pw   *io.PipeWriter
+	done <-chan error
+	sig  string // only valid after done received nil
+}
+
+// NewSigner creates a new signer. It returns an error if SignOptions is
+// invalid.
+func NewSigner(options *SignOptions) (*Signer, error) {
 	if options == nil {
-		return fmt.Errorf("dkim: no options specified")
+		return nil, fmt.Errorf("dkim: no options specified")
 	}
 	if options.Domain == "" {
-		return fmt.Errorf("dkim: no domain specified")
+		return nil, fmt.Errorf("dkim: no domain specified")
 	}
 	if options.Selector == "" {
-		return fmt.Errorf("dkim: no selector specified")
+		return nil, fmt.Errorf("dkim: no selector specified")
 	}
 	if options.Signer == nil {
-		return fmt.Errorf("dkim: no signer specified")
+		return nil, fmt.Errorf("dkim: no signer specified")
 	}
 
 	headerCan := options.HeaderCanonicalization
@@ -90,7 +106,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		headerCan = CanonicalizationSimple
 	}
 	if _, ok := canonicalizers[headerCan]; !ok {
-		return fmt.Errorf("dkim: unknown header canonicalization %q", headerCan)
+		return nil, fmt.Errorf("dkim: unknown header canonicalization %q", headerCan)
 	}
 
 	bodyCan := options.BodyCanonicalization
@@ -98,7 +114,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 		bodyCan = CanonicalizationSimple
 	}
 	if _, ok := canonicalizers[bodyCan]; !ok {
-		return fmt.Errorf("dkim: unknown body canonicalization %q", bodyCan)
+		return nil, fmt.Errorf("dkim: unknown body canonicalization %q", bodyCan)
 	}
 
 	var keyAlgo string
@@ -108,7 +124,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	case ed25519.PublicKey:
 		keyAlgo = "ed25519"
 	default:
-		return fmt.Errorf("dkim: unsupported key algorithm %T", options.Signer.Public())
+		return nil, fmt.Errorf("dkim: unsupported key algorithm %T", options.Signer.Public())
 	}
 
 	hash := options.Hash
@@ -120,141 +136,198 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	case crypto.SHA256:
 		hashAlgo = "sha256"
 	case crypto.SHA1:
-		return fmt.Errorf("dkim: hash algorithm too weak: sha1")
+		return nil, fmt.Errorf("dkim: hash algorithm too weak: sha1")
 	default:
-		return fmt.Errorf("dkim: unsupported hash algorithm")
+		return nil, fmt.Errorf("dkim: unsupported hash algorithm")
 	}
 
 	if options.HeaderKeys != nil {
 		ok := false
 		for _, k := range options.HeaderKeys {
-			if strings.ToLower(k) == "from" {
+			if strings.EqualFold(k, "From") {
 				ok = true
 				break
 			}
 		}
 		if !ok {
-			return fmt.Errorf("dkim: the From header field must be signed")
+			return nil, fmt.Errorf("dkim: the From header field must be signed")
 		}
 	}
 
-	// Read header
-	br := bufio.NewReader(r)
-	h, err := readHeader(br)
+	done := make(chan error, 1)
+	pr, pw := io.Pipe()
+
+	s := &Signer{
+		pw:   pw,
+		done: done,
+	}
+
+	closeReadWithError := func(err error) {
+		pr.CloseWithError(err)
+		done <- err
+	}
+
+	go func() {
+		// Read header
+		br := bufio.NewReader(pr)
+		h, err := readHeader(br)
+		if err != nil {
+			closeReadWithError(err)
+			return
+		}
+
+		// Hash body
+		hasher := hash.New()
+		can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
+		if _, err := io.Copy(can, br); err != nil {
+			closeReadWithError(err)
+			return
+		}
+		if err := can.Close(); err != nil {
+			closeReadWithError(err)
+			return
+		}
+		bodyHashed := hasher.Sum(nil)
+
+		params := map[string]string{
+			"v":  "1",
+			"a":  keyAlgo + "-" + hashAlgo,
+			"bh": base64.StdEncoding.EncodeToString(bodyHashed),
+			"c":  string(headerCan) + "/" + string(bodyCan),
+			"d":  options.Domain,
+			//"l": "", // TODO
+			"s": options.Selector,
+			"t": formatTime(now()),
+			//"z": "", // TODO
+		}
+
+		var headerKeys []string
+		if options.HeaderKeys != nil {
+			headerKeys = options.HeaderKeys
+		} else {
+			for _, kv := range h {
+				k, _ := parseHeaderField(kv)
+				headerKeys = append(headerKeys, k)
+			}
+		}
+		params["h"] = formatTagList(headerKeys)
+
+		if options.Identifier != "" {
+			params["i"] = options.Identifier
+		}
+
+		if options.QueryMethods != nil {
+			methods := make([]string, len(options.QueryMethods))
+			for i, method := range options.QueryMethods {
+				methods[i] = string(method)
+			}
+			params["q"] = formatTagList(methods)
+		}
+
+		if !options.Expiration.IsZero() {
+			params["x"] = formatTime(options.Expiration)
+		}
+
+		// Hash and sign headers
+		hasher.Reset()
+		picker := newHeaderPicker(h)
+		for _, k := range headerKeys {
+			kv := picker.Pick(k)
+			if kv == "" {
+				// The Signer MAY include more instances of a header field name
+				// in "h=" than there are actual corresponding header fields so
+				// that the signature will not verify if additional header
+				// fields of that name are added.
+				continue
+			}
+
+			kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+			if _, err := io.WriteString(hasher, kv); err != nil {
+				closeReadWithError(err)
+				return
+			}
+		}
+
+		params["b"] = ""
+		sigField := formatSignature(params)
+		sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
+		sigField = strings.TrimRight(sigField, crlf)
+		if _, err := io.WriteString(hasher, sigField); err != nil {
+			closeReadWithError(err)
+			return
+		}
+		hashed := hasher.Sum(nil)
+
+		sig, err := options.Signer.Sign(randReader, hashed, hash)
+		if err != nil {
+			closeReadWithError(err)
+			return
+		}
+		params["b"] = base64.StdEncoding.EncodeToString(sig)
+
+		s.sig = formatSignature(params)
+		closeReadWithError(nil)
+		close(done)
+	}()
+
+	return s, nil
+}
+
+// Write implements io.WriteCloser.
+func (s *Signer) Write(b []byte) (n int, err error) {
+	return s.pw.Write(b)
+}
+
+// Close implements io.WriteCloser. The error return by Close must be checked.
+func (s *Signer) Close() error {
+	if err := s.pw.Close(); err != nil {
+		return err
+	}
+	return <-s.done
+}
+
+// Signature returns the whole DKIM-Signature header field. It can only be
+// called after a successful Signer.Close call.
+//
+// The returned value contains both the header field name, its value and the
+// final CRLF.
+func (s *Signer) Signature() string {
+	if s.sig == "" {
+		panic("dkim: Signer.Signature must only be called after a succesful Signer.Close")
+	}
+	return s.sig
+}
+
+// Sign signs a message. It reads it from r and writes the signed version to w.
+func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
+	s, err := NewSigner(options)
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 
-	// Hash body
-	// We need to keep a copy of the body in memory
+	// We need to keep the message in a buffer so we can write the new DKIM
+	// header field before the rest of the message
 	var b bytes.Buffer
-	hasher := hash.New()
-	can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
-	mw := io.MultiWriter(&b, can)
-	if _, err := io.Copy(mw, br); err != nil {
+	mw := io.MultiWriter(&b, s)
+
+	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
-	if err := can.Close(); err != nil {
-		return err
-	}
-	bodyHashed := hasher.Sum(nil)
-
-	params := map[string]string{
-		"v":  "1",
-		"a":  keyAlgo + "-" + hashAlgo,
-		"bh": base64.StdEncoding.EncodeToString(bodyHashed),
-		"c":  string(headerCan) + "/" + string(bodyCan),
-		"d":  options.Domain,
-		//"l": "", // TODO
-		"s": options.Selector,
-		"t": formatTime(now()),
-		//"z": "", // TODO
-	}
-
-	var headerKeys []string
-	if options.HeaderKeys != nil {
-		headerKeys = options.HeaderKeys
-	} else {
-		for _, kv := range h {
-			k, _ := parseHeaderField(kv)
-			headerKeys = append(headerKeys, k)
-		}
-	}
-	params["h"] = formatTagList(headerKeys)
-
-	if options.Identifier != "" {
-		params["i"] = options.Identifier
-	}
-
-	if options.QueryMethods != nil {
-		methods := make([]string, len(options.QueryMethods))
-		for i, method := range options.QueryMethods {
-			methods[i] = string(method)
-		}
-		params["q"] = formatTagList(methods)
-	}
-
-	if !options.Expiration.IsZero() {
-		params["x"] = formatTime(options.Expiration)
-	}
-
-	// Hash and sign headers
-	hasher.Reset()
-	picker := newHeaderPicker(h)
-	for _, k := range headerKeys {
-		kv := picker.Pick(k)
-		if kv == "" {
-			continue
-		}
-
-		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
-		if _, err := hasher.Write([]byte(kv)); err != nil {
-			return err
-		}
-	}
-
-	params["b"] = ""
-	sigField := formatSignature(params)
-	sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
-	sigField = strings.TrimRight(sigField, crlf)
-	if _, err := hasher.Write([]byte(sigField)); err != nil {
-		return err
-	}
-	hashed := hasher.Sum(nil)
-
-	sig, err := options.Signer.Sign(randReader, hashed, hash)
-	if err != nil {
-		return err
-	}
-	params["b"] = base64.StdEncoding.EncodeToString(sig)
-	sigField = formatSignature(params)
-
-	if _, err := w.Write([]byte(sigField)); err != nil {
-		return err
-	}
-	if err := writeHeader(w, h); err != nil {
+	if err := s.Close(); err != nil {
 		return err
 	}
 
+	if _, err := io.WriteString(w, s.Signature()); err != nil {
+		return err
+	}
 	_, err = io.Copy(w, &b)
 	return err
 }
 
 func formatSignature(params map[string]string) string {
-	var fold strings.Builder
-	sig := "DKIM-Signature: " + formatHeaderParams(params) + crlf
-	buf := bytes.NewBufferString(sig)
-	line := make([]byte, 75) // 78 - len("\r\n\s")
-	first := true
-	for len, err := buf.Read(line); err != io.EOF; len, err = buf.Read(line) {
-		if first {
-			first = false
-		} else {
-			fold.WriteString("\r\n ")
-		}
-		fold.Write(line[:len])
-	}
-	return fold.String()
+	sig := headerFieldName + ": " + formatHeaderParams(params)
+	return foldHeaderField(sig)
 }
 
 func formatTagList(l []string) string {

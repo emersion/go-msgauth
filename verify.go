@@ -106,7 +106,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	var signatures []*signature
 	for i, kv := range h {
 		k, v := parseHeaderField(kv)
-		if strings.EqualFold(k, "Dkim-Signature") {
+		if strings.EqualFold(k, headerFieldName) {
 			signatures = append(signatures, &signature{i, v})
 		}
 	}
@@ -324,6 +324,9 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	for _, key := range headerKeys {
 		kv := picker.Pick(key)
 		if kv == "" {
+			// The field MAY contain names of header fields that do not exist
+			// when signed; nonexistent header fields do not contribute to the
+			// signature computation
 			continue
 		}
 

@@ -2,6 +2,7 @@ package dkim
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +46,24 @@ func writeHeader(w io.Writer, h header) error {
 	}
 	_, err := w.Write([]byte(crlf))
 	return err
+}
+
+func foldHeaderField(kv string) string {
+	buf := bytes.NewBufferString(kv + crlf)
+
+	line := make([]byte, 75) // 78 - len("\r\n\s")
+	first := true
+	var fold strings.Builder
+	for len, err := buf.Read(line); err != io.EOF; len, err = buf.Read(line) {
+		if first {
+			first = false
+		} else {
+			fold.WriteString("\r\n ")
+		}
+		fold.Write(line[:len])
+	}
+
+	return fold.String()
 }
 
 func parseHeaderField(s string) (k string, v string) {
