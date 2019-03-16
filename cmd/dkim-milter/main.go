@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	"net/mail"
 	"net/textproto"
 	"os"
 	"os/signal"
@@ -15,46 +21,74 @@ import (
 	"github.com/emersion/go-dkim"
 	"github.com/emersion/go-milter"
 	"github.com/emersion/go-msgauth"
+	"golang.org/x/crypto/ed25519"
 )
 
-var identity string
-var listenURI string
-var verbose bool
+var (
+	signDomains    stringSliceFlag
+	identity       string
+	listenURI      string
+	privateKeyPath string
+	selector       string
+	verbose        bool
+)
+
+var privateKey crypto.Signer
+
+var signHeaderKeys = []string{
+	"From",
+	"Reply-To",
+	"Subject",
+	"Date",
+	"To",
+	"Cc",
+	"Resent-Date",
+	"Resent-From",
+	"Resent-To",
+	"Resent-Cc",
+	"In-Reply-To",
+	"References",
+	"List-Id",
+	"List-Help",
+	"List-Unsubscribe",
+	"List-Subscribe",
+	"List-Post",
+	"List-Owner",
+	"List-Archive",
+}
 
 func init() {
+	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed")
 	flag.StringVar(&identity, "i", "", "Server identity (defaults to hostname)")
 	flag.StringVar(&listenURI, "l", "unix:///tmp/dkim-milter.sock", "Listen URI")
+	flag.StringVar(&privateKeyPath, "k", "", "Private key (PEM-formatted)")
+	flag.StringVar(&selector, "s", "", "Selector")
 	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
 }
 
-type session struct {
-	identity      string
-	authResDelete []int
-	done          <-chan error
-	verifs        []*dkim.Verification // only valid after done is closed
-	pw            *io.PipeWriter
+type stringSliceFlag []string
+
+func (f *stringSliceFlag) String() string {
+	return strings.Join(*f, ", ")
 }
 
-func newSession(identity string) *session {
-	done := make(chan error, 1)
-	pr, pw := io.Pipe()
-	s := &session{
-		identity: identity,
-		done:     done,
-		pw:       pw,
-	}
+func (f *stringSliceFlag) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
 
-	// TODO: limit max. number of signatures
-	go func() {
-		var err error
-		s.verifs, err = dkim.Verify(pr)
-		io.Copy(ioutil.Discard, pr)
-		pr.Close()
-		done <- err
-		close(done)
-	}()
+type session struct {
+	authResDelete []int
+	headerBuf     bytes.Buffer
 
-	return s
+	signDomain     string
+	signHeaderKeys []string
+
+	done   <-chan error
+	pw     *io.PipeWriter
+	verifs []*dkim.Verification // only valid after done is closed
+	signer *dkim.Signer
+	mw     io.Writer
 }
 
 func (s *session) Connect(host string, family string, port uint16, addr net.IP, m *milter.Modifier) (milter.Response, error) {
@@ -73,9 +107,43 @@ func (s *session) RcptTo(rcptTo string, m *milter.Modifier) (milter.Response, er
 	return nil, nil
 }
 
+func parseAddressDomain(s string) (string, error) {
+	addr, err := mail.ParseAddress(s)
+	if err != nil {
+		return "", err
+	}
+
+	parts := strings.SplitN(addr.Address, "@", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("dkim-milter: malformed address: missing '@'")
+	}
+
+	return parts[1], nil
+}
+
 func (s *session) Header(name string, value string, m *milter.Modifier) (milter.Response, error) {
+	if strings.EqualFold(name, "From") || strings.EqualFold(name, "Sender") {
+		domain, err := parseAddressDomain(value)
+		if err != nil {
+			return nil, fmt.Errorf("dkim-milter: failed to parse header field '%v': %v", name, err)
+		}
+
+		for _, d := range signDomains {
+			if strings.EqualFold(d, domain) {
+				s.signDomain = d
+				break
+			}
+		}
+	}
+
+	for _, k := range signHeaderKeys {
+		if strings.EqualFold(name, k) {
+			s.signHeaderKeys = append(s.signHeaderKeys, name)
+		}
+	}
+
 	field := name + ": " + value + "\r\n"
-	_, err := s.pw.Write([]byte(field))
+	_, err := s.headerBuf.WriteString(field)
 	return milter.RespContinue, err
 }
 
@@ -86,23 +154,66 @@ func getIdentity(authRes string) string {
 
 func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Response, error) {
 	// Write final CRLF to begin message body
-	if _, err := s.pw.Write([]byte("\r\n")); err != nil {
+	if _, err := s.headerBuf.WriteString("\r\n"); err != nil {
 		return nil, err
 	}
 
 	// Delete any existing Authentication-Results header field with our identity
 	fields := h["Authentication-Results"]
 	for i, field := range fields {
-		if strings.EqualFold(s.identity, getIdentity(field)) {
+		if strings.EqualFold(identity, getIdentity(field)) {
 			s.authResDelete = append(s.authResDelete, i)
 		}
 	}
-	return milter.RespContinue, nil
+
+	// Sign if necessary
+	if s.signDomain != "" {
+		opts := dkim.SignOptions{
+			Domain: s.signDomain,
+			Selector: selector,
+			Signer: privateKey,
+			HeaderKeys: s.signHeaderKeys,
+			QueryMethods: []dkim.QueryMethod{dkim.QueryMethodDNSTXT},
+		}
+
+		var err error
+		s.signer, err = dkim.NewSigner(&opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Verify existing signatures
+	done := make(chan error, 1)
+	pr, pw := io.Pipe()
+
+	s.done = done
+	s.pw = pw
+
+	// TODO: limit max. number of signatures
+	go func() {
+		var err error
+		s.verifs, err = dkim.Verify(pr)
+		io.Copy(ioutil.Discard, pr)
+		pr.Close()
+		done <- err
+		close(done)
+	}()
+
+	// Process header
+	return s.BodyChunk(s.headerBuf.Bytes(), m)
 }
 
 func (s *session) BodyChunk(chunk []byte, m *milter.Modifier) (milter.Response, error) {
-	_, err := s.pw.Write(chunk)
-	return milter.RespContinue, err
+	if _, err := s.pw.Write(chunk); err != nil {
+		return nil, err
+	}
+	if s.signer != nil {
+		if _, err := s.signer.Write(chunk); err != nil {
+			return nil, err
+		}
+	}
+	return milter.RespContinue, nil
 }
 
 func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
@@ -120,12 +231,32 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		if verbose {
 			log.Printf("DKIM verification failed: %v", err)
 		}
-		return milter.RespAccept, nil
+		return nil, err
+	}
+
+	if s.signer != nil {
+		if err := s.signer.Close(); err != nil {
+			if verbose {
+				log.Printf("DKIM signature failed: %v", err)
+			}
+			return nil, err
+		}
+
+		kv := s.signer.Signature()
+		parts := strings.SplitN(kv, ": ", 2)
+		if len(parts) != 2 {
+			panic("dkim-milter: malformed DKIM-Signature header field")
+		}
+		k, v := parts[0], strings.TrimSuffix(parts[1], "\r\n")
+
+		if err := m.InsertHeader(0, k, v); err != nil {
+			return nil, err
+		}
 	}
 
 	results := make([]msgauth.Result, 0, len(s.verifs))
 
-	if len(s.verifs) == 0 {
+	if len(s.verifs) == 0 && s.signer == nil {
 		results = append(results, &msgauth.DKIMResult{
 			Value: msgauth.ResultNone,
 		})
@@ -158,9 +289,46 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		})
 	}
 
-	v := msgauth.Format(s.identity, results)
-	err := m.InsertHeader(0, "Authentication-Results", v)
-	return milter.RespAccept, err
+	v := msgauth.Format(identity, results)
+	if err := m.InsertHeader(0, "Authentication-Results", v); err != nil {
+		return nil, err
+	}
+
+	return milter.RespAccept, nil
+}
+
+func loadPrivateKey(path string) (crypto.Signer, error) {
+	f, err := os.Open(privateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(b)
+	if block == nil {
+		return nil, fmt.Errorf("no PEM data found")
+	}
+
+	switch strings.ToUpper(block.Type) {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "EDDSA PRIVATE KEY":
+		if len(block.Bytes) != ed25519.PrivateKeySize {
+			return nil, fmt.Errorf("invalid Ed25519 private key size")
+		}
+		return ed25519.PrivateKey(block.Bytes), nil
+	default:
+		return nil, fmt.Errorf("unknown private key type: '%v'", block.Type)
+	}
 }
 
 func main() {
@@ -174,6 +342,18 @@ func main() {
 		}
 	}
 
+	if (len(signDomains) > 0 || privateKeyPath != "" || selector != "") && !(len(signDomains) > 0 && privateKeyPath != "" && selector != "") {
+		log.Fatal("Domain(s) (-d) and private key (-k) must be both specified")
+	}
+
+	if privateKeyPath != "" {
+		var err error
+		privateKey, err = loadPrivateKey(privateKeyPath)
+		if err != nil {
+			log.Fatalf("Failed to load private key from '%v': %v", privateKeyPath, err)
+		}
+	}
+
 	parts := strings.SplitN(listenURI, "://", 2)
 	if len(parts) != 2 {
 		log.Fatal("Invalid listen URI")
@@ -182,7 +362,7 @@ func main() {
 
 	s := milter.Server{
 		NewMilter: func() milter.Milter {
-			return newSession(identity)
+			return &session{}
 		},
 		Actions:  milter.OptAddHeader | milter.OptChangeHeader,
 		Protocol: milter.OptNoConnect | milter.OptNoHelo | milter.OptNoMailFrom | milter.OptNoRcptTo,
