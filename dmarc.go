@@ -20,10 +20,10 @@ const (
 type FailureOptions int
 
 const (
-	FailureAll FailureOptions = 1 << iota // "0"
-	FailureAny
-	FailureDKIM
-	FailureSPF
+	FailureAll  FailureOptions = 1 << iota // "0"
+	FailureAny                             // "1"
+	FailureDKIM                            // "d"
+	FailureSPF                             // "s"
 )
 
 type Policy string
@@ -60,7 +60,7 @@ func (err tempFailError) Error() string {
 	return "dmarc: " + string(err)
 }
 
-// IsTempFail returns true if the error returned by Verify is a temporary
+// IsTempFail returns true if the error returned by Lookup is a temporary
 // failure.
 func IsTempFail(err error) bool {
 	_, ok := err.(tempFailError)
