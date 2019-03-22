@@ -13,8 +13,8 @@ import (
 type AlignmentMode string
 
 const (
-	AlignmentStrict AlignmentMode = "s"
-	AlignmentRelaxed = "r"
+	AlignmentStrict  AlignmentMode = "s"
+	AlignmentRelaxed               = "r"
 )
 
 type FailureOptions int
@@ -29,9 +29,9 @@ const (
 type Policy string
 
 const (
-	PolicyNone Policy = "none"
-	PolicyQuarantine = "quarantine"
-	PolicyReject = "reject"
+	PolicyNone       Policy = "none"
+	PolicyQuarantine        = "quarantine"
+	PolicyReject            = "reject"
 )
 
 type ReportFormat string
@@ -42,16 +42,16 @@ const (
 
 // Record is a DMARC record, as defined in RFC 7489 section 6.3.
 type Record struct {
-	DKIMAlignment AlignmentMode // "adkim"
-	SPFAlignment AlignmentMode // "aspf"
-	FailureOptions FailureOptions // "fo"
-	Policy Policy // "p"
-	Percent *int // "pct"
-	ReportFormat []ReportFormat // "rf"
-	ReportInterval time.Duration // "ri"
-	ReportURIAggregate []string // "rua"
-	ReportURIFailure []string // "ruf"
-	SubdomainPolicy Policy // "sp"
+	DKIMAlignment      AlignmentMode  // "adkim"
+	SPFAlignment       AlignmentMode  // "aspf"
+	FailureOptions     FailureOptions // "fo"
+	Policy             Policy         // "p"
+	Percent            *int           // "pct"
+	ReportFormat       []ReportFormat // "rf"
+	ReportInterval     time.Duration  // "ri"
+	ReportURIAggregate []string       // "rua"
+	ReportURIFailure   []string       // "ruf"
+	SubdomainPolicy    Policy         // "sp"
 }
 
 type tempFailError string
