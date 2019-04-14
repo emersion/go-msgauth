@@ -8,6 +8,7 @@ A Go library to authenticate e-mails:
 
 * Create and verify [DKIM signatures][DKIM]
 * Create and parse [Authentication-Results header fields][Authentication-Results]
+* Fetch [DMARC] records
 
 ## DKIM [![GoDoc](https://godoc.org/github.com/emersion/go-msgauth/dkim?status.svg)](https://godoc.org/github.com/emersion/go-msgauth/dkim)
 
@@ -77,9 +78,14 @@ if err != nil {
 log.Println(identifier, results)
 ```
 
+## DMARC [![GoDoc](https://godoc.org/github.com/emersion/go-msgauth/dmarc?status.svg)](https://godoc.org/github.com/emersion/go-msgauth/dmarc)
+
+See the GoDoc page.
+
 ## License
 
 MIT
 
 [DKIM]: https://tools.ietf.org/html/rfc6376
 [Authentication-Results]: https://tools.ietf.org/html/rfc7601
+[DMARC]: http://tools.ietf.org/html/rfc7489

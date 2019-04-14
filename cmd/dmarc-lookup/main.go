@@ -1,12 +1,10 @@
-//+build ignore
-
 package main
 
 import (
 	"flag"
 	"log"
 
-	"github.com/emersion/go-dmarc"
+	"github.com/emersion/go-msgauth/dmarc"
 )
 
 func main() {
