@@ -169,10 +169,10 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 	// Sign if necessary
 	if s.signDomain != "" {
 		opts := dkim.SignOptions{
-			Domain: s.signDomain,
-			Selector: selector,
-			Signer: privateKey,
-			HeaderKeys: s.signHeaderKeys,
+			Domain:       s.signDomain,
+			Selector:     selector,
+			Signer:       privateKey,
+			HeaderKeys:   s.signHeaderKeys,
 			QueryMethods: []dkim.QueryMethod{dkim.QueryMethodDNSTXT},
 		}
 

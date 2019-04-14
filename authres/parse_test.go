@@ -7,14 +7,14 @@ import (
 
 var parseTests = []msgauthTest{
 	{
-		value: "",
+		value:      "",
 		identifier: "",
-		results: nil,
+		results:    nil,
 	},
 	{
-		value: "example.com 1; none",
+		value:      "example.com 1; none",
 		identifier: "example.com",
-		results: nil,
+		results:    nil,
 	},
 	{
 		value: "example.com; \r\n" +

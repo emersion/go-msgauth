@@ -11,15 +11,15 @@ import (
 type ResultValue string
 
 const (
-	ResultNone ResultValue = "none"
-	ResultPass = "pass"
-	ResultFail = "fail"
-	ResultPolicy = "policy"
-	ResultNeutral = "neutral"
-	ResultTempError = "temperror"
-	ResultPermError = "permerror"
-	ResultHardFail = "hardfail"
-	ResultSoftFail = "softfail"
+	ResultNone      ResultValue = "none"
+	ResultPass                  = "pass"
+	ResultFail                  = "fail"
+	ResultPolicy                = "policy"
+	ResultNeutral               = "neutral"
+	ResultTempError             = "temperror"
+	ResultPermError             = "permerror"
+	ResultHardFail              = "hardfail"
+	ResultSoftFail              = "softfail"
 )
 
 // Result is an authentication result.
@@ -30,7 +30,7 @@ type Result interface {
 
 type AuthResult struct {
 	Value ResultValue
-	Auth string
+	Auth  string
 }
 
 func (r *AuthResult) parse(value ResultValue, params map[string]string) {
@@ -43,8 +43,8 @@ func (r *AuthResult) format() (ResultValue, map[string]string) {
 }
 
 type DKIMResult struct {
-	Value ResultValue
-	Domain string
+	Value      ResultValue
+	Domain     string
 	Identifier string
 }
 
@@ -62,9 +62,9 @@ func (r *DKIMResult) format() (ResultValue, map[string]string) {
 }
 
 type DomainKeysResult struct {
-	Value ResultValue
+	Value  ResultValue
 	Domain string
-	From string
+	From   string
 	Sender string
 }
 
@@ -77,15 +77,15 @@ func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) {
 
 func (r *DomainKeysResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
-		"header.d": r.Domain,
-		"header.from": r.From,
+		"header.d":      r.Domain,
+		"header.from":   r.From,
 		"header.sender": r.Sender,
 	}
 }
 
 type IPRevResult struct {
 	Value ResultValue
-	IP string
+	IP    string
 }
 
 func (r *IPRevResult) parse(value ResultValue, params map[string]string) {
@@ -98,8 +98,8 @@ func (r *IPRevResult) format() (ResultValue, map[string]string) {
 }
 
 type SenderIDResult struct {
-	Value ResultValue
-	HeaderKey string
+	Value       ResultValue
+	HeaderKey   string
 	HeaderValue string
 }
 
@@ -117,14 +117,14 @@ func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
 
 func (r *SenderIDResult) format() (value ResultValue, params map[string]string) {
 	return r.Value, map[string]string{
-		"header."+strings.ToLower(r.HeaderKey): r.HeaderValue,
+		"header." + strings.ToLower(r.HeaderKey): r.HeaderValue,
 	}
 }
 
 type SPFResult struct {
 	Value ResultValue
-	From string
-	Helo string
+	From  string
+	Helo  string
 }
 
 func (r *SPFResult) parse(value ResultValue, params map[string]string) {
@@ -136,13 +136,13 @@ func (r *SPFResult) parse(value ResultValue, params map[string]string) {
 func (r *SPFResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
 		"smtp.mailfrom": r.From,
-		"smtp.helo": r.Helo,
+		"smtp.helo":     r.Helo,
 	}
 }
 
 type GenericResult struct {
 	Method string
-	Value ResultValue
+	Value  ResultValue
 	Params map[string]string
 }
 
@@ -243,7 +243,7 @@ func parseResult(s string) (Result, error) {
 	} else {
 		r = &GenericResult{
 			Method: method,
-			Value: value,
+			Value:  value,
 			Params: params,
 		}
 	}

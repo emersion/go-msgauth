@@ -1,16 +1,16 @@
 package authres
 
-type msgauthTest struct{
-	value string
+type msgauthTest struct {
+	value      string
 	identifier string
-	results []Result
+	results    []Result
 }
 
 var msgauthTests = []msgauthTest{
 	{
-		value: "example.org; none",
+		value:      "example.org; none",
 		identifier: "example.org",
-		results: nil,
+		results:    nil,
 	},
 	{
 		value: "example.com;" +

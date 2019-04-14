@@ -18,9 +18,9 @@ func ExampleSign() {
 	r := strings.NewReader(mailString)
 
 	options := &dkim.SignOptions{
-		Domain: "example.org",
+		Domain:   "example.org",
 		Selector: "brisbane",
-		Signer: privateKey,
+		Signer:   privateKey,
 	}
 
 	var b bytes.Buffer
