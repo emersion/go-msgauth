@@ -1,4 +1,4 @@
-package msgauth
+package authres
 
 import (
 	"reflect"

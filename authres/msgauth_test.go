@@ -1,4 +1,4 @@
-package msgauth
+package authres
 
 type msgauthTest struct{
 	value string
