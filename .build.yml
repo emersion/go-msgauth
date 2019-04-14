@@ -1,0 +1,19 @@
+image: alpine/edge
+packages:
+  - go
+  # Required by codecov
+  - bash
+  - findutils
+sources:
+  - https://github.com/emersion/go-msgauth
+tasks:
+  - build: |
+      cd go-msgauth
+      go build -v ./...
+  - test: |
+      cd go-msgauth
+      go test -coverprofile=coverage.txt -covermode=atomic ./...
+  - upload-coverage: |
+      cd go-msgauth
+      export CODECOV_TOKEN=2db2b6a5-8f23-4e1e-a6ac-6e8db41eb3d1
+      curl -s https://codecov.io/bash | bash

@@ -18,9 +18,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/emersion/go-dkim"
 	"github.com/emersion/go-milter"
-	"github.com/emersion/go-msgauth"
+	"github.com/emersion/go-msgauth/authres"
+	"github.com/emersion/go-msgauth/dkim"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -254,11 +254,11 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		}
 	}
 
-	results := make([]msgauth.Result, 0, len(s.verifs))
+	results := make([]authres.Result, 0, len(s.verifs))
 
 	if len(s.verifs) == 0 && s.signer == nil {
-		results = append(results, &msgauth.DKIMResult{
-			Value: msgauth.ResultNone,
+		results = append(results, &authres.DKIMResult{
+			Value: authres.ResultNone,
 		})
 	}
 
@@ -271,25 +271,25 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 			}
 		}
 
-		var val msgauth.ResultValue
+		var val authres.ResultValue
 		if verif.Err == nil {
-			val = msgauth.ResultPass
+			val = authres.ResultPass
 		} else if dkim.IsPermFail(verif.Err) {
-			val = msgauth.ResultPermError
+			val = authres.ResultPermError
 		} else if dkim.IsTempFail(verif.Err) {
-			val = msgauth.ResultTempError
+			val = authres.ResultTempError
 		} else {
-			val = msgauth.ResultFail
+			val = authres.ResultFail
 		}
 
-		results = append(results, &msgauth.DKIMResult{
+		results = append(results, &authres.DKIMResult{
 			Value:      val,
 			Domain:     verif.Domain,
 			Identifier: verif.Identifier,
 		})
 	}
 
-	v := msgauth.Format(identity, results)
+	v := authres.Format(identity, results)
 	if err := m.InsertHeader(0, "Authentication-Results", v); err != nil {
 		return nil, err
 	}

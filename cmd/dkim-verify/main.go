@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/emersion/go-dkim"
+	"github.com/emersion/go-msgauth/dkim"
 )
 
 func main() {
