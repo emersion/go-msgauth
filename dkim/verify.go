@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -143,6 +144,10 @@ func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verifica
 
 		go func() {
 			v, err := verify(h, pr, h[sig.i], sig.v)
+
+			// Make sure we consume the whole reader, otherwise io.Copy on
+			// other side can block forever.
+			io.Copy(ioutil.Discard, pr)
 
 			v.Err = err
 			chans[i] <- v
