@@ -1,6 +1,7 @@
 package dkim
 
 import (
+	"errors"
 	"io"
 	"reflect"
 	"strings"
@@ -131,5 +132,38 @@ func TestVerify_ed25519(t *testing.T) {
 	v := verifications[0]
 	if !reflect.DeepEqual(testEd25519Verification, v) {
 		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testEd25519Verification, v)
+	}
+}
+
+// errorReader reads from r and then returns an arbitrary error.
+type errorReader struct {
+	r io.Reader
+	err error
+}
+
+func (r *errorReader) Read(b []byte) (int, error) {
+	n, err := r.r.Read(b)
+	if err == io.EOF {
+		return n, r.err
+	}
+	return n, err
+}
+
+func TestVerify_invalid(t *testing.T) {
+	r := newMailStringReader("asdf")
+	_, err := Verify(r)
+	if err == nil {
+		t.Fatalf("Expected error while verifying signature, got nil")
+	}
+
+	expectedErr := errors.New("expected test error")
+
+	r = &errorReader{
+		r: newMailStringReader(verifiedEd25519MailString),
+		err: expectedErr,
+	}
+	_, err = Verify(r)
+	if err != expectedErr {
+		t.Fatalf("Expected error while verifying signature, got: %v", err)
 	}
 }
