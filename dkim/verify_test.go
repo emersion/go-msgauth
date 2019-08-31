@@ -8,6 +8,34 @@ import (
 	"time"
 )
 
+func newMailStringReader(s string) io.Reader {
+	return strings.NewReader(strings.Replace(s, "\n", "\r\n", -1))
+}
+
+const unsignedMailString = `From: Joe SixPack <joe@football.example.com>
+To: Suzie Q <suzie@shopping.example.net>
+Subject: Is dinner ready?
+Date: Fri, 11 Jul 2003 21:00:37 -0700 (PDT)
+Message-ID: <20030712040037.46341.5F8J@football.example.com>
+
+Hi.
+
+We lost the game. Are you hungry yet?
+
+Joe.
+`
+
+func TestVerify_unsigned(t *testing.T) {
+	r := newMailStringReader(unsignedMailString)
+
+	verifications, err := Verify(r)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 0 {
+		t.Fatalf("Expected exactly zero verification, got %v", len(verifications))
+	}
+}
+
 const verifiedMailString = `DKIM-Signature: v=1; a=rsa-sha256; s=brisbane; d=example.com;
       c=simple/simple; q=dns/txt; i=joe@football.example.com;
       h=Received : From : To : Subject : Date : Message-ID;
@@ -37,10 +65,6 @@ var testVerification = &Verification{
 	Identifier: "joe@football.example.com",
 	HeaderKeys: []string{"Received", "From", "To", "Subject", "Date", "Message-ID"},
 	BodyLength: -1,
-}
-
-func newMailStringReader(s string) io.Reader {
-	return strings.NewReader(strings.Replace(s, "\n", "\r\n", -1))
 }
 
 func TestVerify(t *testing.T) {
