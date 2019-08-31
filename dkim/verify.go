@@ -135,7 +135,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verifica
 		// Be careful with loop variables and goroutines.
 		i, sig := i, sig
 
-		chans[i] = make(chan *Verification)
+		chans[i] = make(chan *Verification, 1)
 
 		pr, pw := io.Pipe()
 		writers[i] = pw
@@ -149,8 +149,9 @@ func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verifica
 		}()
 	}
 
-	// This can fail only if CloseWithError is used (we don't do it).
-	io.Copy(io.MultiWriter(writers...), r)
+	if _, err := io.Copy(io.MultiWriter(writers...), r); err != nil {
+		return nil, err
+	}
 	for _, wr := range pipeWriters {
 		wr.Close()
 	}
