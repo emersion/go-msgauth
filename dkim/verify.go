@@ -2,13 +2,11 @@ package dkim
 
 import (
 	"bufio"
-	"bytes"
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,32 +109,64 @@ func Verify(r io.Reader) ([]*Verification, error) {
 		}
 	}
 
-	// Copy body in a buffer if multiple signatures are checked
-	var br *bytes.Reader
-	if len(signatures) > 1 {
-		b, err := ioutil.ReadAll(bufr)
-		if err != nil {
-			return nil, err
-		}
-		br = bytes.NewReader(b)
+	if len(signatures) != 1 {
+		return parallelVerify(bufr, h, signatures)
+	}
+
+	// If there is only one signature - just verify it.
+	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v)
+	if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
+		return nil, err
+	}
+
+	v.Err = err
+	return []*Verification{v}, nil
+}
+
+func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verification, error) {
+	pipeWriters := make([]*io.PipeWriter, len(signatures))
+	// We can't pass pipeWriter to io.MultiWriter directly,
+	// we need a slice of io.Writer, but we also need *io.PipeWriter
+	// to call Close on it.
+	writers := make([]io.Writer, len(signatures))
+	chans := make([]chan *Verification, len(signatures))
+
+	for i, sig := range signatures {
+		// Be careful with loop variables and goroutines.
+		i, sig := i, sig
+
+		chans[i] = make(chan *Verification)
+
+		pr, pw := io.Pipe()
+		writers[i] = pw
+		pipeWriters[i] = pw
+
+		go func() {
+			v, err := verify(h, pr, h[sig.i], sig.v)
+
+			v.Err = err
+			chans[i] <- v
+		}()
+	}
+
+	// This can fail only if CloseWithError is used (we don't do it).
+	io.Copy(io.MultiWriter(writers...), r)
+	for _, wr := range pipeWriters {
+		wr.Close()
 	}
 
 	verifications := make([]*Verification, len(signatures))
-	for i, sig := range signatures {
-		// Use the bytes.Reader if there is one
-		var r io.Reader = bufr
-		if br != nil {
-			br.Seek(0, io.SeekStart)
-			r = br
-		}
+	for i, ch := range chans {
+		verifications[i] = <-ch
+	}
 
-		v, err := verify(h, r, h[sig.i], sig.v)
+	// Return unexpected failures as a separate error.
+	for _, v := range verifications {
+		err := v.Err
 		if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
+			v.Err = nil
 			return verifications, err
 		}
-
-		v.Err = err
-		verifications[i] = v
 	}
 	return verifications, nil
 }
