@@ -29,12 +29,14 @@ type Result interface {
 }
 
 type AuthResult struct {
-	Value ResultValue
-	Auth  string
+	Value  ResultValue
+	Reason string
+	Auth   string
 }
 
 func (r *AuthResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.Auth = params["smtp.auth"]
 }
 
@@ -44,18 +46,21 @@ func (r *AuthResult) format() (ResultValue, map[string]string) {
 
 type DKIMResult struct {
 	Value      ResultValue
+	Reason     string
 	Domain     string
 	Identifier string
 }
 
 func (r *DKIMResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.Domain = params["header.d"]
 	r.Identifier = params["header.i"]
 }
 
 func (r *DKIMResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
+		"reason":   r.Reason,
 		"header.d": r.Domain,
 		"header.i": r.Identifier,
 	}
@@ -63,6 +68,7 @@ func (r *DKIMResult) format() (ResultValue, map[string]string) {
 
 type DomainKeysResult struct {
 	Value  ResultValue
+	Reason string
 	Domain string
 	From   string
 	Sender string
@@ -70,6 +76,7 @@ type DomainKeysResult struct {
 
 func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.Domain = params["header.d"]
 	r.From = params["header.from"]
 	r.Sender = params["header.sender"]
@@ -77,6 +84,7 @@ func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) {
 
 func (r *DomainKeysResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
+		"reason":        r.Reason,
 		"header.d":      r.Domain,
 		"header.from":   r.From,
 		"header.sender": r.Sender,
@@ -84,27 +92,34 @@ func (r *DomainKeysResult) format() (ResultValue, map[string]string) {
 }
 
 type IPRevResult struct {
-	Value ResultValue
-	IP    string
+	Value  ResultValue
+	Reason string
+	IP     string
 }
 
 func (r *IPRevResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.IP = params["policy.iprev"]
 }
 
 func (r *IPRevResult) format() (ResultValue, map[string]string) {
-	return r.Value, map[string]string{"policy.iprev": r.IP}
+	return r.Value, map[string]string{
+		"reason":       r.Reason,
+		"policy.iprev": r.IP,
+	}
 }
 
 type SenderIDResult struct {
 	Value       ResultValue
+	Reason      string
 	HeaderKey   string
 	HeaderValue string
 }
 
 func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 
 	for k, v := range params {
 		if strings.HasPrefix(k, "header.") {
@@ -117,41 +132,48 @@ func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
 
 func (r *SenderIDResult) format() (value ResultValue, params map[string]string) {
 	return r.Value, map[string]string{
+		"reason":                                 r.Reason,
 		"header." + strings.ToLower(r.HeaderKey): r.HeaderValue,
 	}
 }
 
 type SPFResult struct {
-	Value ResultValue
-	From  string
-	Helo  string
+	Value  ResultValue
+	Reason string
+	From   string
+	Helo   string
 }
 
 func (r *SPFResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.From = params["smtp.mailfrom"]
 	r.Helo = params["smtp.helo"]
 }
 
 func (r *SPFResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
+		"reason":        r.Reason,
 		"smtp.mailfrom": r.From,
 		"smtp.helo":     r.Helo,
 	}
 }
 
 type DMARCResult struct {
-	Value ResultValue
-	From  string
+	Value  ResultValue
+	Reason string
+	From   string
 }
 
 func (r *DMARCResult) parse(value ResultValue, params map[string]string) {
 	r.Value = value
+	r.Reason = params["reason"]
 	r.From = params["header.from"]
 }
 
 func (r *DMARCResult) format() (ResultValue, map[string]string) {
 	return r.Value, map[string]string{
+		"reason":      r.Reason,
 		"header.from": r.From,
 	}
 }
