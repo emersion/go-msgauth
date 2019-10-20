@@ -37,6 +37,8 @@ func resultMethod(r Result) string {
 		return "sender-id"
 	case *SPFResult:
 		return "spf"
+	case *DMARCResult:
+		return "dmarc"
 	case *GenericResult:
 		return r.Method
 	default:
