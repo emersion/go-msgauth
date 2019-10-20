@@ -2,6 +2,8 @@ package authres
 
 import (
 	"sort"
+	"strings"
+	"unicode"
 )
 
 // Format formats an Authentication-Results header.
@@ -69,9 +71,71 @@ func formatParams(params map[string]string) string {
 		if i > 0 {
 			s += " "
 		}
-		s += k + "=" + params[k]
+
+		var value string
+		if k == "reason" {
+			value = formatValue(params[k])
+		} else {
+			value = formatPvalue(params[k])
+		}
+		s += k + "=" + value
 		i++
 	}
 
 	return s
+}
+
+var tspecials = map[rune]struct{}{
+	'(': {}, ')': {}, '<': {}, '>': {}, '@': {},
+	',': {}, ';': {}, ':': {}, '\\': {}, '"': {},
+	'/': {}, '[': {}, ']': {}, '?': {}, '=': {},
+}
+
+func formatValue(s string) string {
+	// value := token / quoted-string
+	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+	//            or tspecials>
+	// tspecials :=  "(" / ")" / "<" / ">" / "@" /
+	//               "," / ";" / ":" / "\" / <">
+	//               "/" / "[" / "]" / "?" / "="
+	//               ; Must be in quoted-string,
+	//               ; to use within parameter values
+
+	shouldQuote := false
+	for _, ch := range s {
+		if _, special := tspecials[ch]; ch <= ' ' /* SPACE or CTL */ || special {
+			shouldQuote = true
+		}
+	}
+
+	if shouldQuote {
+		// None of involved specs specify how to handle " in quoted strings
+		// so we just drop them and hope they are not criticial.
+		return `"` + strings.Replace(s, `"`, ``, -1) + `"`
+	}
+	return s
+}
+
+func formatPvalue(s string) string {
+	// pvalue = [CFWS] ( value / [ [ local-part ] "@" ] domain-name )
+	//          [CFWS]
+
+	// Experience shows that implementers often "forget" that things can
+	// be quoted in various places where they are usually not quoted
+	// so we can't get away by just quoting everything.
+
+	// Relevant ABNF rules are much complicated than that, but this
+	// will catch most of the cases and we can fallback to quoting
+	// for others.
+	addressLike := true
+	for _, ch := range s {
+		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) || ch != '@' {
+			addressLike = false
+		}
+	}
+
+	if addressLike {
+		return s
+	}
+	return formatValue(s)
 }
