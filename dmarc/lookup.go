@@ -22,13 +22,21 @@ func IsTempFail(err error) bool {
 	return ok
 }
 
+var ErrNoPolicy = errors.New("dmarc: no policy found for domain")
+
 // Lookup queries a DMARC record for a specified domain.
 func Lookup(domain string) (*Record, error) {
 	txts, err := net.LookupTXT("_dmarc." + domain)
 	if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 		return nil, tempFailError("TXT record unavailable: " + err.Error())
 	} else if err != nil {
+		if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
+			return nil, ErrNoPolicy
+		}
 		return nil, errors.New("dmarc: failed to lookup TXT record: " + err.Error())
+	}
+	if len(txts) == 0 {
+		return nil, ErrNoPolicy
 	}
 
 	// Long keys are split in multiple parts
