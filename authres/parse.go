@@ -140,6 +140,22 @@ func (r *SPFResult) format() (ResultValue, map[string]string) {
 	}
 }
 
+type DMARCResult struct {
+	Value ResultValue
+	From  string
+}
+
+func (r *DMARCResult) parse(value ResultValue, params map[string]string) {
+	r.Value = value
+	r.From = params["header.from"]
+}
+
+func (r *DMARCResult) format() (ResultValue, map[string]string) {
+	return r.Value, map[string]string{
+		"header.from": r.From,
+	}
+}
+
 type GenericResult struct {
 	Method string
 	Value  ResultValue
@@ -175,6 +191,9 @@ var results = map[string]newResultFunc{
 	},
 	"spf": func() Result {
 		return new(SPFResult)
+	},
+	"dmarc": func() Result {
+		return new(DMARCResult)
 	},
 }
 
