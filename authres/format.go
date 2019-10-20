@@ -109,11 +109,24 @@ func formatValue(s string) string {
 	}
 
 	if shouldQuote {
-		// None of involved specs specify how to handle " in quoted strings
-		// so we just drop them and hope they are not criticial.
-		return `"` + strings.Replace(s, `"`, ``, -1) + `"`
+		return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
 	}
 	return s
+}
+
+var addressOk = map[rune]struct{}{
+	// Most ASCII punctuation except for:
+	//  ( ) = "
+	// as these can cause issues due to ambiguous ABNF rules.
+	// I.e. technically mentioned characters can be left unquoted, but they can
+	// be interpreted as parts of non-quoted parameters or comments so it is
+	// better to quote them.
+	'#': {}, '$': {}, '%': {}, '&': {},
+	'\'': {}, '*': {}, '+': {}, ',': {},
+	'.': {}, '/': {}, '-': {}, '@': {},
+	'[': {}, ']': {}, '\\': {}, '^': {},
+	'_': {}, '`': {}, '{': {}, '|': {},
+	'}': {}, '~': {},
 }
 
 func formatPvalue(s string) string {
@@ -129,7 +142,7 @@ func formatPvalue(s string) string {
 	// for others.
 	addressLike := true
 	for _, ch := range s {
-		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) || ch != '@' {
+		if _, ok := addressOk[ch]; !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && !ok {
 			addressLike = false
 		}
 	}
