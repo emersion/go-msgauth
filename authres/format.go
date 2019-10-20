@@ -49,9 +49,15 @@ func resultMethod(r Result) string {
 func formatParams(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for k := range params {
+		if k == "reason" {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	if params["reason"] != "" {
+		keys = append([]string{"reason"}, keys...)
+	}
 
 	s := ""
 	i := 0
