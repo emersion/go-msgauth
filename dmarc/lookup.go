@@ -41,6 +41,10 @@ func Lookup(domain string) (*Record, error) {
 
 	// Long keys are split in multiple parts
 	txt := strings.Join(txts, "")
+	return Parse(txt)
+}
+
+func Parse(txt string) (*Record, error) {
 	params, err := parseParams(txt)
 	if err != nil {
 		return nil, err
