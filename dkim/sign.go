@@ -80,9 +80,9 @@ type SignOptions struct {
 // After a successful Close, Signature can be called to retrieve the
 // DKIM-Signature header field that the caller should prepend to the message.
 type Signer struct {
-	pw   *io.PipeWriter
-	done <-chan error
-	sig  string // only valid after done received nil
+	pw        *io.PipeWriter
+	done      <-chan error
+	sigParams map[string]string // only valid after done received nil
 }
 
 // NewSigner creates a new signer. It returns an error if SignOptions is
@@ -273,7 +273,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 		params["b"] = base64.StdEncoding.EncodeToString(sig)
 
-		s.sig = formatSignature(params)
+		s.sigParams = params
 		closeReadWithError(nil)
 	}()
 
@@ -299,10 +299,19 @@ func (s *Signer) Close() error {
 // The returned value contains both the header field name, its value and the
 // final CRLF.
 func (s *Signer) Signature() string {
-	if s.sig == "" {
+	if s.sigParams == nil {
 		panic("dkim: Signer.Signature must only be called after a succesful Signer.Close")
 	}
-	return s.sig
+	return formatSignature(s.sigParams)
+}
+
+// SignatureValue returns value of the DKIM-Signature header field. It can
+// only be called after a successful Signer.Close call.
+func (s *Signer) SignatureValue() string {
+	if s.sigParams == nil {
+		panic("dkim: Signer.SignatureValue must only be called after a succesful Signer.Close")
+	}
+	return formatHeaderParams(s.sigParams)
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.
