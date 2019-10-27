@@ -168,6 +168,8 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 	}
 
 	go func() {
+		defer close(done)
+
 		// Read header
 		br := bufio.NewReader(pr)
 		h, err := readHeader(br)
@@ -267,7 +269,6 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 
 		s.sig = formatSignature(params)
 		closeReadWithError(nil)
-		close(done)
 	}()
 
 	return s, nil
