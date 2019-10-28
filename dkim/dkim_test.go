@@ -27,7 +27,7 @@ GMot/L2x0IYyMLAz6oLWh2hm7zwtb0CgOrPo1ke44hFYnfc=
 -----END RSA PRIVATE KEY-----
 `
 
-const testEd25519PrivateKeyBase64 = "nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A="
+const testEd25519SeedBase64 = "nWGxne/9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A="
 
 var (
 	testPrivateKey        *rsa.PrivateKey
@@ -42,10 +42,11 @@ func init() {
 		panic(err)
 	}
 
-	testEd25519PrivateKey, err = base64.StdEncoding.DecodeString(testEd25519PrivateKeyBase64)
+	ed25519Seed, err := base64.StdEncoding.DecodeString(testEd25519SeedBase64)
 	if err != nil {
 		panic(err)
 	}
+	testEd25519PrivateKey = ed25519.NewKeyFromSeed(ed25519Seed)
 
 	now = func() time.Time {
 		return time.Unix(424242, 0)
