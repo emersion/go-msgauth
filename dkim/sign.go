@@ -258,6 +258,12 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 		hashed := hasher.Sum(nil)
 
+		// Don't pass Hash to Sign for ed25519 as it doesn't support it
+		// and will return an error ("ed25519: cannot sign hashed message").
+		if keyAlgo == "ed25519" {
+			hash = crypto.Hash(0)
+		}
+
 		sig, err := options.Signer.Sign(randReader, hashed, hash)
 		if err != nil {
 			closeReadWithError(err)
