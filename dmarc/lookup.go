@@ -65,6 +65,7 @@ func Parse(txt string) (*Record, error) {
 		return nil, err
 	}
 
+	rec.DKIMAlignment = AlignmentRelaxed
 	if adkim, ok := params["adkim"]; ok {
 		rec.DKIMAlignment, err = parseAlignmentMode(adkim, "adkim")
 		if err != nil {
@@ -72,6 +73,7 @@ func Parse(txt string) (*Record, error) {
 		}
 	}
 
+	rec.SPFAlignment = AlignmentRelaxed
 	if aspf, ok := params["aspf"]; ok {
 		rec.SPFAlignment, err = parseAlignmentMode(aspf, "aspf")
 		if err != nil {

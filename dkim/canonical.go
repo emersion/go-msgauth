@@ -2,6 +2,7 @@ package dkim
 
 import (
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -104,21 +105,10 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 
 	var v string
 	if len(kv) > 1 {
-		v = kv[1]
-	}
-	lines := strings.Split(v, crlf)
-	lines[0] = strings.TrimLeft(lines[0], " \t")
+		rxReduceWS := regexp.MustCompile(`[ \t\r\n]+`)
+		v = rxReduceWS.ReplaceAllString(kv[1], " ")
+		v = strings.TrimSpace(v)
 
-	v = ""
-	for _, l := range lines {
-		if len(l) == 0 {
-			break
-		}
-
-		if l[0] == ' ' || l[0] == '\t' {
-			v += " "
-		}
-		v += strings.Trim(l, " \t")
 	}
 
 	return k + ":" + v + crlf

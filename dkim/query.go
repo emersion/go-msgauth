@@ -101,6 +101,7 @@ func parsePublicKey(s string) (*queryResult, error) {
 	if p == "" {
 		return nil, permFailError("key revoked")
 	}
+	p = strings.ReplaceAll(p, " ", "")
 	b, err := base64.StdEncoding.DecodeString(p)
 	if err != nil {
 		return nil, permFailError("key syntax error: " + err.Error())
