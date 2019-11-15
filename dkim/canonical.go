@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+var rxReduceWS = regexp.MustCompile(`[ \t\r\n]+`)
+
 // Canonicalization is a canonicalization algorithm.
 type Canonicalization string
 
@@ -105,7 +107,6 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 
 	var v string
 	if len(kv) > 1 {
-		rxReduceWS := regexp.MustCompile(`[ \t\r\n]+`)
 		v = rxReduceWS.ReplaceAllString(kv[1], " ")
 		v = strings.TrimSpace(v)
 
