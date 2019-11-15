@@ -89,6 +89,10 @@ var relaxedCanonicalizerHeaderTests = []struct {
 		"Subject \t:\t Kimi \t \r\n No \t\r\n Na Wa\r\n",
 		"subject:Kimi No Na Wa\r\n",
 	},
+	{
+		"Subject \t:\t Ki \tmi \t \r\n No \t\r\n Na Wa\r\n",
+		"subject:Ki mi No Na Wa\r\n",
+	},
 }
 
 func TestRelaxedCanonicalizer_CanonicalizeHeader(t *testing.T) {
