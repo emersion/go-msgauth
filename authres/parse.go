@@ -2,8 +2,10 @@ package authres
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"unicode"
+
 )
 
 // ResultValue is an authentication result value, as defined in RFC 5451 section
@@ -224,9 +226,25 @@ var results = map[string]newResultFunc{
 func Parse(v string) (identifier string, results []Result, err error) {
 	parts := strings.Split(v, ";")
 
+	start := 1
 	identifier = strings.TrimSpace(parts[0])
+	if strings.HasPrefix(identifier, "i=") {
+		// We are dealing with ARC-Authentication-Results
+		// https://www.rfc-editor.org/rfc/rfc8617.html#section-4.2.1
+		// Let's make sure
+		kv := strings.SplitN(identifier, "=", 2)
+		if len(kv) == 2 {
+			instance, err := strconv.Atoi(kv[1])
+			// Instance tag values can range from 1-50 (inclusive).
+			if err == nil && instance > 0 && instance <= 50  {
+				identifier = strings.TrimSpace(parts[1])
+				start = 2
+			}
+		}
+	}
 	i := strings.IndexFunc(identifier, unicode.IsSpace)
 	if i > 0 {
+		// Authentication-Results: example.org 1;
 		version := strings.TrimSpace(identifier[i:])
 		if version != "1" {
 			return "", nil, errors.New("msgauth: unsupported version")
@@ -235,7 +253,8 @@ func Parse(v string) (identifier string, results []Result, err error) {
 		identifier = identifier[:i]
 	}
 
-	for i := 1; i < len(parts); i++ {
+
+	for i := start; i < len(parts); i++ {
 		s := strings.TrimSpace(parts[i])
 		if s == "" {
 			continue
