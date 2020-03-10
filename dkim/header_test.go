@@ -104,9 +104,11 @@ func TestHeaderPicker_Pick(t *testing.T) {
 }
 
 func TestFoldHeaderField(t *testing.T) {
-	header := `DKIM-Signature: a=rsa-sha256; bh=bvW0aiEWdP0ie2rawBb+IiTxlHI9KgEIYjEYTGzMRa0=; c=simple/simple; d=test.xxxxxxxxxx.xxxxx; h=Return-Path:From:To:Subject:Message-ID:Date; s=brisbane; t=1583859773; v=1; b=IIlaZ79pLDdypX2YzJuy9EvxsbrqF360CLhkQqMqVC/GIa1K/X8p8POny7WuVuFTMHLvA1zH9YcXgEgIH+X0GgGsqqzq8ETL+QGZ9g1EKCmIg+ZEYV5JnH25Ar6bJpGra3jg6sIxKi6CthpK50kd8T0Q3K/oZGot4BkLaPqogpo=;`
+	// fake header with `len(header) % 75 == 74`. See #23
+	header := `Minimum length header that generates the issue should be of 74 characters `
+	expected := "Minimum length header that generates the issue should be of 74 characters \r\n"
 	folded := foldHeaderField(header)
-	if strings.HasSuffix(folded, "\r\n \n") {
-		t.Errorf("Extra black line added in header:\n ---Start--- %v ---End---", folded)
+	if folded != expected {
+		t.Errorf("Extra black line added in header:\n Actual:\n ---Start--- %v ---End---\nExpected: \n ---Start--- %v ---End---\n", folded, expected)
 	}
 }
