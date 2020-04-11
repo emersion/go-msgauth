@@ -49,7 +49,7 @@ func writeHeader(w io.Writer, h header) error {
 }
 
 func foldHeaderField(kv string) string {
-	buf := bytes.NewBufferString(kv + crlf)
+	buf := bytes.NewBufferString(kv)
 
 	line := make([]byte, 75) // 78 - len("\r\n\s")
 	first := true
@@ -63,7 +63,7 @@ func foldHeaderField(kv string) string {
 		fold.Write(line[:len])
 	}
 
-	return fold.String()
+	return fold.String() + crlf
 }
 
 func parseHeaderField(s string) (k string, v string) {

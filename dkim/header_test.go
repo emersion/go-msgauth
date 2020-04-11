@@ -102,3 +102,13 @@ func TestHeaderPicker_Pick(t *testing.T) {
 
 	})
 }
+
+func TestFoldHeaderField(t *testing.T) {
+	// fake header with `len(header) % 75 == 74`. See #23
+	header := `Minimum length header that generates the issue should be of 74 characters `
+	expected := "Minimum length header that generates the issue should be of 74 characters \r\n"
+	folded := foldHeaderField(header)
+	if folded != expected {
+		t.Errorf("Extra black line added in header:\n Actual:\n ---Start--- %v ---End---\nExpected: \n ---Start--- %v ---End---\n", folded, expected)
+	}
+}

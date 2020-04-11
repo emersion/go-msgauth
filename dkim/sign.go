@@ -305,15 +305,6 @@ func (s *Signer) Signature() string {
 	return formatSignature(s.sigParams)
 }
 
-// SignatureValue returns value of the DKIM-Signature header field. It can
-// only be called after a successful Signer.Close call.
-func (s *Signer) SignatureValue() string {
-	if s.sigParams == nil {
-		panic("dkim: Signer.SignatureValue must only be called after a succesful Signer.Close")
-	}
-	return formatHeaderParams(s.sigParams)
-}
-
 // Sign signs a message. It reads it from r and writes the signed version to w.
 func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	s, err := NewSigner(options)
