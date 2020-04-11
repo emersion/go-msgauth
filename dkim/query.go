@@ -68,8 +68,16 @@ var queryMethods = map[QueryMethod]queryFunc{
 	QueryMethodDNSTXT: queryDNSTXT,
 }
 
+var lookupTXT = net.LookupTXT
+
+type lookupTXTFunc func(name string) ([]string, error)
+
+func SetLookupTXTFunc(lookup lookupTXTFunc) {
+	lookupTXT = lookup
+}
+
 func queryDNSTXT(domain, selector string) (*queryResult, error) {
-	txts, err := net.LookupTXT(selector + "._domainkey." + domain)
+	txts, err := lookupTXT(selector + "._domainkey." + domain)
 	if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 		return nil, tempFailError("key unavailable: " + err.Error())
 	} else if err != nil {
