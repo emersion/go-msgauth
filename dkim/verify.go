@@ -86,11 +86,19 @@ type signature struct {
 	v string
 }
 
+type VerifierOptions struct {
+	LookupTXT txtLookupFunc
+}
+
 // Verify checks if a message's signatures are valid. It returns one
 // verification per signature.
 //
 // There is no guarantee that the reader will be completely consumed.
 func Verify(r io.Reader) ([]*Verification, error) {
+	return VerifyWithOption(r, nil)
+}
+
+func VerifyWithOption(r io.Reader, option *VerifierOptions) ([]*Verification, error) {
 	// TODO: be able to specify options such as the max number of signatures to
 	// check
 
@@ -111,11 +119,11 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	}
 
 	if len(signatures) != 1 {
-		return parallelVerify(bufr, h, signatures)
+		return parallelVerify(bufr, h, signatures, option)
 	}
 
 	// If there is only one signature - just verify it.
-	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v)
+	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v, option)
 	if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
 		return nil, err
 	}
@@ -124,7 +132,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	return []*Verification{v}, nil
 }
 
-func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verification, error) {
+func parallelVerify(r io.Reader, h header, signatures []*signature, option *VerifierOptions) ([]*Verification, error) {
 	pipeWriters := make([]*io.PipeWriter, len(signatures))
 	// We can't pass pipeWriter to io.MultiWriter directly,
 	// we need a slice of io.Writer, but we also need *io.PipeWriter
@@ -143,7 +151,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verifica
 		pipeWriters[i] = pw
 
 		go func() {
-			v, err := verify(h, pr, h[sig.i], sig.v)
+			v, err := verify(h, pr, h[sig.i], sig.v, option)
 
 			// Make sure we consume the whole reader, otherwise io.Copy on
 			// other side can block forever.
@@ -177,7 +185,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature) ([]*Verifica
 	return verifications, nil
 }
 
-func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, error) {
+func verify(h header, r io.Reader, sigField, sigValue string, option *VerifierOptions) (*Verification, error) {
 	verif := new(Verification)
 
 	params, err := parseHeaderParams(sigValue)
@@ -246,7 +254,11 @@ func verify(h header, r io.Reader, sigField, sigValue string) (*Verification, er
 	var res *queryResult
 	for _, method := range methods {
 		if query, ok := queryMethods[QueryMethod(method)]; ok {
-			res, err = query(verif.Domain, stripWhitespace(params["s"]))
+			if option != nil && option.LookupTXT != nil {
+				res, err = query(verif.Domain, stripWhitespace(params["s"]), option.LookupTXT)
+			} else {
+				res, err = query(verif.Domain, stripWhitespace(params["s"]), nil)
+			}
 			break
 		}
 	}
