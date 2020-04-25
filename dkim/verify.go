@@ -86,8 +86,9 @@ type signature struct {
 	v string
 }
 
+// LookupTXT allows you customize the domain lookup to config timeout, dns resolver etc
 type VerifierOptions struct {
-	LookupTXT txtLookupFunc
+	LookupTXT func(domain string) ([]string, error)
 }
 
 // Verify checks if a message's signatures are valid. It returns one
@@ -95,10 +96,10 @@ type VerifierOptions struct {
 //
 // There is no guarantee that the reader will be completely consumed.
 func Verify(r io.Reader) ([]*Verification, error) {
-	return VerifyWithOption(r, nil)
+	return VerifyWithOptions(r, nil)
 }
 
-func VerifyWithOption(r io.Reader, option *VerifierOptions) ([]*Verification, error) {
+func VerifyWithOptions(r io.Reader, options *VerifierOptions) ([]*Verification, error) {
 	// TODO: be able to specify options such as the max number of signatures to
 	// check
 
@@ -119,11 +120,11 @@ func VerifyWithOption(r io.Reader, option *VerifierOptions) ([]*Verification, er
 	}
 
 	if len(signatures) != 1 {
-		return parallelVerify(bufr, h, signatures, option)
+		return parallelVerify(bufr, h, signatures, options)
 	}
 
 	// If there is only one signature - just verify it.
-	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v, option)
+	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v, options)
 	if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
 		return nil, err
 	}
@@ -185,7 +186,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature, option *Veri
 	return verifications, nil
 }
 
-func verify(h header, r io.Reader, sigField, sigValue string, option *VerifierOptions) (*Verification, error) {
+func verify(h header, r io.Reader, sigField, sigValue string, options *VerifierOptions) (*Verification, error) {
 	verif := new(Verification)
 
 	params, err := parseHeaderParams(sigValue)
@@ -254,8 +255,8 @@ func verify(h header, r io.Reader, sigField, sigValue string, option *VerifierOp
 	var res *queryResult
 	for _, method := range methods {
 		if query, ok := queryMethods[QueryMethod(method)]; ok {
-			if option != nil && option.LookupTXT != nil {
-				res, err = query(verif.Domain, stripWhitespace(params["s"]), option.LookupTXT)
+			if options != nil {
+				res, err = query(verif.Domain, stripWhitespace(params["s"]), options.LookupTXT)
 			} else {
 				res, err = query(verif.Domain, stripWhitespace(params["s"]), nil)
 			}

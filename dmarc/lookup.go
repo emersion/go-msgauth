@@ -24,18 +24,21 @@ func IsTempFail(err error) bool {
 
 var ErrNoPolicy = errors.New("dmarc: no policy found for domain")
 
-type txtLookupFunc func(domain string) ([]string, error)
+// LookupTXT allows you customize the domain lookup to config timeout, dns resolver etc
+type LookupOptions struct {
+	LookupTXT func(domain string) ([]string, error)
+}
 
 // Lookup queries a DMARC record for a specified domain.
 func Lookup(domain string) (*Record, error) {
-	return LookupWithOption(domain, nil)
+	return LookupWithOptions(domain, nil)
 }
 
-func LookupWithOption(domain string, txtLookup txtLookupFunc) (*Record, error) {
+func LookupWithOptions(domain string, options *LookupOptions) (*Record, error) {
 	var txts []string
 	var err error
-	if txtLookup != nil {
-		txts, err = net.LookupTXT("_dmarc." + domain)
+	if options != nil && options.LookupTXT != nil {
+		txts, err = options.LookupTXT("_dmarc." + domain)
 	} else {
 		txts, err = net.LookupTXT("_dmarc." + domain)
 	}
