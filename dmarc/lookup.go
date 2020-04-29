@@ -24,9 +24,25 @@ func IsTempFail(err error) bool {
 
 var ErrNoPolicy = errors.New("dmarc: no policy found for domain")
 
+// LookupOptions allows to customize the default signature verification behavior
+// LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
+type LookupOptions struct {
+	LookupTXT func(domain string) ([]string, error)
+}
+
 // Lookup queries a DMARC record for a specified domain.
 func Lookup(domain string) (*Record, error) {
-	txts, err := net.LookupTXT("_dmarc." + domain)
+	return LookupWithOptions(domain, nil)
+}
+
+func LookupWithOptions(domain string, options *LookupOptions) (*Record, error) {
+	var txts []string
+	var err error
+	if options != nil && options.LookupTXT != nil {
+		txts, err = options.LookupTXT("_dmarc." + domain)
+	} else {
+		txts, err = net.LookupTXT("_dmarc." + domain)
+	}
 	if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 		return nil, tempFailError("TXT record unavailable: " + err.Error())
 	} else if err != nil {

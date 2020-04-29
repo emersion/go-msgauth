@@ -16,7 +16,7 @@ func init() {
 	queryMethods["dns/txt"] = queryTest
 }
 
-func queryTest(domain, selector string) (*queryResult, error) {
+func queryTest(domain, selector string, txtLookup txtLookupFunc) (*queryResult, error) {
 	record := selector + "._domainkey." + domain
 	switch record {
 	case "brisbane._domainkey.example.com", "brisbane._domainkey.example.org", "test._domainkey.football.example.com":

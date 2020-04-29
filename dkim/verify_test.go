@@ -3,6 +3,7 @@ package dkim
 import (
 	"errors"
 	"io"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -84,6 +85,36 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+func TestVerifyWithOption(t *testing.T) {
+	r := newMailStringReader(verifiedMailString)
+	option := VerifyOptions{}
+	verifications, err := VerifyWithOptions(r, &option)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 1 {
+		t.Fatalf("Expected exactly one verification, got %v", len(verifications))
+	}
+
+	v := verifications[0]
+	if !reflect.DeepEqual(testVerification, v) {
+		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testVerification, v)
+	}
+
+	r = newMailStringReader(verifiedMailString)
+	option = VerifyOptions{LookupTXT: net.LookupTXT}
+	verifications, err = VerifyWithOptions(r, &option)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 1 {
+		t.Fatalf("Expected exactly one verification, got %v", len(verifications))
+	}
+
+	v = verifications[0]
+	if !reflect.DeepEqual(testVerification, v) {
+		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testVerification, v)
+	}
+}
+
 const verifiedEd25519MailString = `DKIM-Signature: v=1; a=ed25519-sha256; c=relaxed/relaxed;
  d=football.example.com; i=@football.example.com;
  q=dns/txt; s=brisbane; t=1528637909; h=from : to :
@@ -137,7 +168,7 @@ func TestVerify_ed25519(t *testing.T) {
 
 // errorReader reads from r and then returns an arbitrary error.
 type errorReader struct {
-	r io.Reader
+	r   io.Reader
 	err error
 }
 
@@ -159,7 +190,7 @@ func TestVerify_invalid(t *testing.T) {
 	expectedErr := errors.New("expected test error")
 
 	r = &errorReader{
-		r: newMailStringReader(verifiedEd25519MailString),
+		r:   newMailStringReader(verifiedEd25519MailString),
 		err: expectedErr,
 	}
 	_, err = Verify(r)

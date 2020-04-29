@@ -62,14 +62,22 @@ const (
 	QueryMethodDNSTXT QueryMethod = "dns/txt"
 )
 
-type queryFunc func(domain, selector string) (*queryResult, error)
+type txtLookupFunc func(domain string) ([]string, error)
+type queryFunc func(domain, selector string, txtLookup txtLookupFunc) (*queryResult, error)
 
 var queryMethods = map[QueryMethod]queryFunc{
 	QueryMethodDNSTXT: queryDNSTXT,
 }
 
-func queryDNSTXT(domain, selector string) (*queryResult, error) {
-	txts, err := net.LookupTXT(selector + "._domainkey." + domain)
+func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult, error) {
+	var txts []string
+	var err error
+	if txtLookup != nil {
+		txts, err = txtLookup(selector + "._domainkey." + domain)
+	} else {
+		txts, err = net.LookupTXT(selector + "._domainkey." + domain)
+	}
+
 	if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 		return nil, tempFailError("key unavailable: " + err.Error())
 	} else if err != nil {
