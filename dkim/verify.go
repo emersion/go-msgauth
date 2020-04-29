@@ -86,8 +86,9 @@ type signature struct {
 	v string
 }
 
-// LookupTXT allows you customize the domain lookup to config timeout, dns resolver etc
-type VerifierOptions struct {
+// VerifyOptions allows to customize the default signature verification behavior
+// LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
+type VerifyOptions struct {
 	LookupTXT func(domain string) ([]string, error)
 }
 
@@ -99,7 +100,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	return VerifyWithOptions(r, nil)
 }
 
-func VerifyWithOptions(r io.Reader, options *VerifierOptions) ([]*Verification, error) {
+func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, error) {
 	// TODO: be able to specify options such as the max number of signatures to
 	// check
 
@@ -133,7 +134,7 @@ func VerifyWithOptions(r io.Reader, options *VerifierOptions) ([]*Verification, 
 	return []*Verification{v}, nil
 }
 
-func parallelVerify(r io.Reader, h header, signatures []*signature, option *VerifierOptions) ([]*Verification, error) {
+func parallelVerify(r io.Reader, h header, signatures []*signature, options *VerifyOptions) ([]*Verification, error) {
 	pipeWriters := make([]*io.PipeWriter, len(signatures))
 	// We can't pass pipeWriter to io.MultiWriter directly,
 	// we need a slice of io.Writer, but we also need *io.PipeWriter
@@ -152,7 +153,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature, option *Veri
 		pipeWriters[i] = pw
 
 		go func() {
-			v, err := verify(h, pr, h[sig.i], sig.v, option)
+			v, err := verify(h, pr, h[sig.i], sig.v, options)
 
 			// Make sure we consume the whole reader, otherwise io.Copy on
 			// other side can block forever.
@@ -186,7 +187,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature, option *Veri
 	return verifications, nil
 }
 
-func verify(h header, r io.Reader, sigField, sigValue string, options *VerifierOptions) (*Verification, error) {
+func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOptions) (*Verification, error) {
 	verif := new(Verification)
 
 	params, err := parseHeaderParams(sigValue)

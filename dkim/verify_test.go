@@ -87,7 +87,7 @@ func TestVerify(t *testing.T) {
 
 func TestVerifyWithOption(t *testing.T) {
 	r := newMailStringReader(verifiedMailString)
-	option := VerifierOptions{}
+	option := VerifyOptions{}
 	verifications, err := VerifyWithOptions(r, &option)
 	if err != nil {
 		t.Fatalf("Expected no error while verifying signature, got: %v", err)
@@ -101,7 +101,7 @@ func TestVerifyWithOption(t *testing.T) {
 	}
 
 	r = newMailStringReader(verifiedMailString)
-	option = VerifierOptions{LookupTXT: net.LookupTXT}
+	option = VerifyOptions{LookupTXT: net.LookupTXT}
 	verifications, err = VerifyWithOptions(r, &option)
 	if err != nil {
 		t.Fatalf("Expected no error while verifying signature, got: %v", err)

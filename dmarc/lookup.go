@@ -24,7 +24,8 @@ func IsTempFail(err error) bool {
 
 var ErrNoPolicy = errors.New("dmarc: no policy found for domain")
 
-// LookupTXT allows you customize the domain lookup to config timeout, dns resolver etc
+// LookupOptions allows to customize the default signature verification behavior
+// LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
 type LookupOptions struct {
 	LookupTXT func(domain string) ([]string, error)
 }
