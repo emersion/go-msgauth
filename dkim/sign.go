@@ -248,6 +248,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 
 		sig_len := dkim_sig.Buf.Len()
+		sig_line_len := dkim_sig.LineLen
 		dkim_sig.AddBase64Tag("b", "")
 		sigField := dkim_sig.Buf.String()
 		sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
@@ -270,6 +271,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			return
 		}
 		dkim_sig.Buf.Truncate(sig_len)
+		dkim_sig.LineLen = sig_line_len
 		dkim_sig.AddBase64Tag("b", base64.StdEncoding.EncodeToString(sig))
 
 		s.dkimSig = dkim_sig.Buf.String()
