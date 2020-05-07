@@ -80,9 +80,9 @@ type SignOptions struct {
 // After a successful Close, Signature can be called to retrieve the
 // DKIM-Signature header field that the caller should prepend to the message.
 type Signer struct {
-	pw        *io.PipeWriter
-	done      <-chan error
-	sigParams map[string]string // only valid after done received nil
+	pw      *io.PipeWriter
+	done    <-chan error
+	dkimSig string // only valid after done received nil
 }
 
 // NewSigner creates a new signer. It returns an error if SignOptions is
@@ -191,17 +191,14 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 		bodyHashed := hasher.Sum(nil)
 
-		params := map[string]string{
-			"v":  "1",
-			"a":  keyAlgo + "-" + hashAlgo,
-			"bh": base64.StdEncoding.EncodeToString(bodyHashed),
-			"c":  string(headerCan) + "/" + string(bodyCan),
-			"d":  options.Domain,
-			//"l": "", // TODO
-			"s": options.Selector,
-			"t": formatTime(now()),
-			//"z": "", // TODO
-		}
+		dkim_sig := NewDKIMSignature()
+		dkim_sig.AddPlainTag("v", "1")
+		dkim_sig.AddPlainTag("a", keyAlgo + "-" + hashAlgo)
+		dkim_sig.AddBase64Tag("bh", base64.StdEncoding.EncodeToString(bodyHashed))
+		dkim_sig.AddPlainTag("c", string(headerCan) + "/" + string(bodyCan))
+		dkim_sig.AddPlainTag("d", options.Domain)
+		dkim_sig.AddPlainTag("s", options.Selector)
+		dkim_sig.AddPlainTag("t", formatTime(now()))
 
 		var headerKeys []string
 		if options.HeaderKeys != nil {
@@ -212,10 +209,10 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 				headerKeys = append(headerKeys, k)
 			}
 		}
-		params["h"] = formatTagList(headerKeys)
+		dkim_sig.AddDelimTag("h", headerKeys, ":")
 
 		if options.Identifier != "" {
-			params["i"] = options.Identifier
+			dkim_sig.AddPlainTag("i", options.Identifier)
 		}
 
 		if options.QueryMethods != nil {
@@ -223,11 +220,11 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			for i, method := range options.QueryMethods {
 				methods[i] = string(method)
 			}
-			params["q"] = formatTagList(methods)
+			dkim_sig.AddDelimTag("q", methods, ":")
 		}
 
 		if !options.Expiration.IsZero() {
-			params["x"] = formatTime(options.Expiration)
+			dkim_sig.AddPlainTag("x", formatTime(options.Expiration))
 		}
 
 		// Hash and sign headers
@@ -250,8 +247,9 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			}
 		}
 
-		params["b"] = ""
-		sigField := formatSignature(params)
+		sig_len := dkim_sig.Buf.Len()
+		dkim_sig.AddBase64Tag("b", "")
+		sigField := dkim_sig.Buf.String()
 		sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
 		sigField = strings.TrimRight(sigField, crlf)
 		if _, err := io.WriteString(hasher, sigField); err != nil {
@@ -271,9 +269,10 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			closeReadWithError(err)
 			return
 		}
-		params["b"] = base64.StdEncoding.EncodeToString(sig)
+		dkim_sig.Buf.Truncate(sig_len)
+		dkim_sig.AddBase64Tag("b", base64.StdEncoding.EncodeToString(sig))
 
-		s.sigParams = params
+		s.dkimSig = dkim_sig.Buf.String()
 		closeReadWithError(nil)
 	}()
 
@@ -299,10 +298,10 @@ func (s *Signer) Close() error {
 // The returned value contains both the header field name, its value and the
 // final CRLF.
 func (s *Signer) Signature() string {
-	if s.sigParams == nil {
+	if s.dkimSig == "" {
 		panic("dkim: Signer.Signature must only be called after a succesful Signer.Close")
 	}
-	return formatSignature(s.sigParams)
+	return s.dkimSig + crlf
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.
