@@ -55,9 +55,9 @@ func TestFormatHeaderParams(t *testing.T) {
 		"d": "example.org",
 	}
 
-	expected := "a=rsa-sha256; d=example.org; v=1;"
+	expected := "DKIM-Signature: a=rsa-sha256; d=example.org; v=1;"
 
-	s := formatHeaderParams(params)
+	s := formatHeaderParams("DKIM-Signature", params)
 	if s != expected {
 		t.Errorf("Expected formatted params to be %q, but got %q", expected, s)
 	}

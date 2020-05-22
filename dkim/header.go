@@ -92,12 +92,49 @@ func parseHeaderParams(s string) (map[string]string, error) {
 	return params, nil
 }
 
-func formatHeaderParams(params map[string]string) string {
+func formatHeaderParams(headerFieldName string, params map[string]string) string {
+	keys, bvalue := sortParams(params)
+
+	var s string
+	var line string
+	first := true
+
+	for _, k := range keys {
+		v := params[k]
+
+		if first {
+			first = false
+			line += fmt.Sprintf("%v: %v=%v;", headerFieldName, k, v)
+			continue
+		} else {
+			nextLength := 3 + len(line) + len(v) + len(k)
+			if nextLength > 75 {
+				s += line + crlf
+				line = ""
+			}
+			line = fmt.Sprintf("%v %v=%v;", line, k, v)
+		}
+	}
+
+	if line != "" {
+		s += line
+	}
+
+	if bvalue != "" {
+		bfiled := foldHeaderField(" b=" + bvalue)
+		s += crlf + bfiled
+	}
+
+	return s
+}
+
+func sortParams(params map[string]string) ([]string, string) {
 	keys := make([]string, 0, len(params))
 	found := false
+	var bvalue string
 	for k := range params {
 		if k == "b" {
-			found = true
+			bvalue = params["b"]
 		} else {
 			keys = append(keys, k)
 		}
@@ -106,21 +143,7 @@ func formatHeaderParams(params map[string]string) string {
 	if found {
 		keys = append(keys, "b")
 	}
-
-	var s string
-	first := true
-	for _, k := range keys {
-		v := params[k]
-
-		if first {
-			first = false
-		} else {
-			s += " "
-		}
-
-		s += k + "=" + v + ";"
-	}
-	return s
+	return keys, bvalue
 }
 
 type headerPicker struct {

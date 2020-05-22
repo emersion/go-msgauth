@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
-const signedEd25519MailString = "DKIM-Signature: a=ed25519-sha256; bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJ" + "\r\n" +
-	" " + "VOzv8=; c=simple/simple; d=football.example.com; h=From:To:Subject:Date:Mes" + "\r\n" +
-	" " + "sage-ID; s=brisbane; t=424242; v=1; b=ZduPZq83AOTqjhScIfHll6W90tMG1nf34a34Q" + "\r\n" +
-	" " + "XKat3iFtP7NQE/3AwnHOrcsR2r5nVNoW+LeZURpT2obCthPCw==;" + "\r\n" +
+const signedEd25519MailString = "DKIM-Signature: a=ed25519-sha256;" + "\r\n" +
+	" " + "bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=; c=simple/simple;" + "\r\n" +
+	" " + "d=football.example.com; h=From:To:Subject:Date:Message-ID; s=brisbane;" + "\r\n" +
+	" " + "t=424242; v=1;" + "\r\n" +
+	" " + "b=O86ToNEaSJCCHtMW6YGNqUjQoWtpe5CAubhkPqVXjeTvqUa75Qsm05JD4FKETTGDX4us7tuj" + "\r\n" +
+	" " + "ZtiELMNQehiFDQ==" + "\r\n" +
 	mailHeaderString +
 	"\r\n" +
 	mailBodyString
