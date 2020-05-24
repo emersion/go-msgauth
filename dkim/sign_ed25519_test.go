@@ -11,8 +11,8 @@ const signedEd25519MailString = "DKIM-Signature: a=ed25519-sha256;" + "\r\n" +
 	" " + "bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=; c=simple/simple;" + "\r\n" +
 	" " + "d=football.example.com; h=From:To:Subject:Date:Message-ID; s=brisbane;" + "\r\n" +
 	" " + "t=424242; v=1;" + "\r\n" +
-	" " + "b=O86ToNEaSJCCHtMW6YGNqUjQoWtpe5CAubhkPqVXjeTvqUa75Qsm05JD4FKETTGDX4us7tuj" + "\r\n" +
-	" " + "ZtiELMNQehiFDQ==" + "\r\n" +
+	" " + "b=iv+zd7iDETgqtf1BSyL++WgzTLNmG2msLIb5HupDqb9ynsNKWld1ApDJ0lsIxTBIyq/mKmSw" + "\r\n" +
+	" " + "+EnfA3YRP/CHBw==" + "\r\n" +
 	mailHeaderString +
 	"\r\n" +
 	mailBodyString

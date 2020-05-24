@@ -26,9 +26,9 @@ const signedMailString = "DKIM-Signature: a=rsa-sha256;" + "\r\n" +
 	" " + "bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=; c=simple/simple;" + "\r\n" +
 	" " + "d=example.org; h=From:To:Subject:Date:Message-ID; s=brisbane; t=424242;" + "\r\n" +
 	" " + "v=1;" + "\r\n" +
-	" " + "b=KXuOIdcHesiuc+CNVJC0ooTO9LvodnM01dstXNTA7elICw7r9LKD5zrPnGwtP5Ye+sOndhJO" + "\r\n" +
-	" " + "23pJIY3LP5oXzCnV3nkZiEwIb0rKIgYxgxx8JfCWbZgurhN35rQjnwCtmcGvN1aJ7ba1x1x63Vf" + "\r\n" +
-	" " + "xp0zwssLR2w8R+PkR4r1ROlM=" + "\r\n" +
+	" " + "b=0SgMief3lYbcE4Ke+LxAOWwGD+wTYWvTMqHUY7QQtC05EcTIyHn3vwFUxESzq6l/zx5GY68C" + "\r\n" +
+	" " + "nkVuMmZ2JkxMtHffdpIAY0w7bkj7EsrJJVmpjk9GANXWPThJCbnVVBZXMViQoQ6hXfzNOunV4+C" + "\r\n" +
+	" " + "n2QWkBhpjPEJeDBSZ279qFnA=" + "\r\n" +
 	mailHeaderString +
 	"\r\n" +
 	mailBodyString

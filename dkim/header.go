@@ -93,7 +93,7 @@ func parseHeaderParams(s string) (map[string]string, error) {
 }
 
 func formatHeaderParams(headerFieldName string, params map[string]string) string {
-	keys, bvalue := sortParams(params)
+	keys, bvalue, found := sortParams(params)
 
 	var s string
 	var line string
@@ -120,7 +120,7 @@ func formatHeaderParams(headerFieldName string, params map[string]string) string
 		s += line
 	}
 
-	if bvalue != "" {
+	if found {
 		bfiled := foldHeaderField(" b=" + bvalue)
 		s += crlf + bfiled
 	}
@@ -128,22 +128,20 @@ func formatHeaderParams(headerFieldName string, params map[string]string) string
 	return s
 }
 
-func sortParams(params map[string]string) ([]string, string) {
+func sortParams(params map[string]string) ([]string, string, bool) {
 	keys := make([]string, 0, len(params))
 	found := false
 	var bvalue string
 	for k := range params {
 		if k == "b" {
 			bvalue = params["b"]
+			found = true
 		} else {
 			keys = append(keys, k)
 		}
 	}
 	sort.Strings(keys)
-	if found {
-		keys = append(keys, "b")
-	}
-	return keys, bvalue
+	return keys, bvalue, found
 }
 
 type headerPicker struct {
