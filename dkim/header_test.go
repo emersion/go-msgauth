@@ -81,6 +81,22 @@ func TestLongHeaderFolding(t *testing.T) {
 	}
 }
 
+func TestSignedHeaderFolding(t *testing.T) {
+	hValue := "From:To:Subject:Date:Message-ID:Long-Header-Name:Another-Long-Header-Name"
+
+	params := map[string]string{
+		"v": "1",
+		"a": "rsa-sha256",
+		"d": "example.org",
+		"h": hValue,
+	}
+
+	s := formatHeaderParams("DKIM-Signature", params)
+	if !strings.Contains(s, hValue) {
+		t.Errorf("Signed Headers names (%v) are not well folded in the signed header %q", hValue, s)
+	}
+}
+
 func TestParseHeaderParams_malformed(t *testing.T) {
 	_, err := parseHeaderParams("abc; def")
 	if err == nil {
