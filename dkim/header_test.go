@@ -63,6 +63,24 @@ func TestFormatHeaderParams(t *testing.T) {
 	}
 }
 
+func TestLongHeaderFolding(t *testing.T) {
+	// see #29 and #27
+
+	params := map[string]string{
+		"v": "1",
+		"a": "rsa-sha256",
+		"d": "example.org",
+		"h": "From:To:Subject:Date:Message-ID:Long-Header-Name",
+	}
+
+	expected := "DKIM-Signature: a=rsa-sha256; d=example.org;\r\n h=From:To:Subject:Date:Message-ID:Long-Header-Name; v=1;"
+
+	s := formatHeaderParams("DKIM-Signature", params)
+	if s != expected {
+		t.Errorf("Expected formatted params to be\n\n %q\n\n, but got\n\n %q", expected, s)
+	}
+}
+
 func TestParseHeaderParams_malformed(t *testing.T) {
 	_, err := parseHeaderParams("abc; def")
 	if err == nil {
