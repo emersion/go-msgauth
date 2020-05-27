@@ -63,7 +63,7 @@ func foldHeaderField(kv string) string {
 		fold.Write(line[:len])
 	}
 
-	return fold.String() + crlf
+	return fold.String()
 }
 
 func parseHeaderField(s string) (k string, v string) {
@@ -92,6 +92,34 @@ func parseHeaderParams(s string) (map[string]string, error) {
 	return params, nil
 }
 
+// "Folding whitespace (FWS) MAY be included on either side of the colon separator."
+// https://tools.ietf.org/html/rfc6376#section-3.5
+func wrapHeaders(values string) string {
+	var s strings.Builder
+	s.WriteString("h=")
+
+	headers := strings.Split(values, ":")
+	avail := 75 - len(" h=")
+
+	for i, header := range headers {
+		chars := len(header) + 1
+		if avail < chars {
+			avail = 75
+			s.WriteString(crlf)
+			s.WriteByte(' ')
+		}
+		avail -= chars
+
+		s.WriteString(header)
+		if i == len(headers) - 1 {
+			s.WriteByte(';')
+		} else {
+			s.WriteByte(':')
+		}
+	}
+	return s.String()
+}
+
 func formatHeaderParams(params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	found := false
@@ -102,25 +130,44 @@ func formatHeaderParams(params map[string]string) string {
 			keys = append(keys, k)
 		}
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool {
+		if len(params[keys[i]]) == len(params[keys[j]]) {
+			return keys[i] < keys[j]
+		}
+		return len(params[keys[i]]) < len(params[keys[j]])
+	})
 	if found {
 		keys = append(keys, "b")
 	}
 
-	var s string
-	first := true
+	var s strings.Builder
+	avail := 75 - len(headerFieldName) - len(": ")
+
 	for _, k := range keys {
 		v := params[k]
 
-		if first {
-			first = false
-		} else {
-			s += " "
+		chars := len(k) + len(v) + 3 // "=; "
+		if avail < chars || k == "b" {
+			avail = 75
+			s.WriteString(crlf)
 		}
+		s.WriteByte(' ')
 
-		s += k + "=" + v + ";"
+		avail -= chars
+		if avail < 0 {
+			if k == "h" {
+				s.WriteString(wrapHeaders(v))
+			} else {
+				s.WriteString(foldHeaderField(k + "=" + v + ";"))
+			}
+		} else {
+			s.WriteString(k)
+			s.WriteByte('=')
+			s.WriteString(v)
+			s.WriteByte(';')
+		}
 	}
-	return s
+	return s.String()
 }
 
 type headerPicker struct {

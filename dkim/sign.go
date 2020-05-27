@@ -333,8 +333,8 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 }
 
 func formatSignature(params map[string]string) string {
-	sig := headerFieldName + ": " + formatHeaderParams(params)
-	return foldHeaderField(sig)
+	sig := headerFieldName + ":" + formatHeaderParams(params) + crlf
+	return sig
 }
 
 func formatTagList(l []string) string {
