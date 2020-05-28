@@ -22,11 +22,12 @@ const mailBodyString = "Hi.\r\n" +
 
 const mailString = mailHeaderString + "\r\n" + mailBodyString
 
-const signedMailString = "DKIM-Signature: a=rsa-sha256; bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv" + "\r\n" +
-	" " + "8=; c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID; s=br" + "\r\n" +
-	" " + "isbane; t=424242; v=1; b=bXtqB8uOEvtd1Xv/DHatdjb9onP0+vnzdYBbPMZm1qrRmhSuFH" + "\r\n" +
-	" " + "WsbkETafswNvJ4VqNX0gMoaYvzcmoMkUhW9m4pgZqR5y+62yA+B7WJCd6mz82UVkS1qEJeGjMxX" + "\r\n" +
-	" " + "mmPDkmLDA5HHL5LLTc3DLrxkwWMLzwrhQL48WhNFD1d6L4=;" + "\r\n" +
+const signedMailString = "DKIM-Signature: a=rsa-sha256; bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=;" + "\r\n" +
+	" " + "c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID;" + "\r\n" +
+	" " + "s=brisbane; t=424242; v=1;" + "\r\n" +
+	" " + "b=MobyyDTeHhMhNJCEI6ATNK63ZQ7deSXK9umyzAvYwFqE6oGGvlQBQwqr1aC11hWpktjMLP1/" + "\r\n" +
+	" " + "m0PBi9v7cRLKMXXBIv2O0B1mIWdZPqd9jveRJqKzCb7SpqH2u5kK6i2vZI639ENTQzRQdxSAGXc" + "\r\n" +
+	" " + "PcPYjrgkqj7xklnrNBs0aIUA=" + "\r\n" +
 	mailHeaderString +
 	"\r\n" +
 	mailBodyString
