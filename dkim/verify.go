@@ -88,8 +88,10 @@ type signature struct {
 
 // VerifyOptions allows to customize the default signature verification behavior
 // LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
+// AllowSHA1: when set to be true, will continue SHA1 verification, even though it is a weak hash
 type VerifyOptions struct {
 	LookupTXT func(domain string) ([]string, error)
+	AllowSHA1 bool
 }
 
 // Verify checks if a message's signatures are valid. It returns one
@@ -296,7 +298,12 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	case "sha1":
 		// RFC 8301 section 3.1: rsa-sha1 MUST NOT be used for signing or
 		// verifying.
-		return verif, permFailError(fmt.Sprintf("hash algorithm too weak: %v", hashAlgo))
+		if options != nil && options.AllowSHA1 {
+			hash = crypto.SHA1
+		} else {
+			return verif, permFailError(fmt.Sprintf("hash algorithm too weak: %v", hashAlgo))
+		}
+
 	case "sha256":
 		hash = crypto.SHA256
 	default:
