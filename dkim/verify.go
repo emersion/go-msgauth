@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -54,6 +55,10 @@ func isFail(err error) bool {
 	return ok
 }
 
+// ErrTooManySignatures is returned by Verify when the message exceeds the
+// maximum number of signatures.
+var ErrTooManySignatures = errors.New("dkim: too many signatures")
+
 var requiredTags = []string{"v", "a", "b", "bh", "d", "h", "s"}
 
 // A Verification is produced by Verify when it checks if one signature is
@@ -86,10 +91,17 @@ type signature struct {
 	v string
 }
 
-// VerifyOptions allows to customize the default signature verification behavior
-// LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
+// VerifyOptions allows to customize the default signature verification
+// behavior.
 type VerifyOptions struct {
+	// LookupTXT returns the DNS TXT records for the given domain name. If nil,
+	// net.LookupTXT is used.
 	LookupTXT func(domain string) ([]string, error)
+	// MaxVerifications controls the maximum number of signature verifications
+	// to perform. If more signatures are present, the first MaxVerifications
+	// signatures are verified, the rest are ignored and ErrTooManySignatures
+	// is returned. If zero, there is no maximum.
+	MaxVerifications int
 }
 
 // Verify checks if a message's signatures are valid. It returns one
@@ -100,10 +112,9 @@ func Verify(r io.Reader) ([]*Verification, error) {
 	return VerifyWithOptions(r, nil)
 }
 
+// VerifyWithOptions performs the same task as Verify, but allows specifying
+// verification options.
 func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, error) {
-	// TODO: be able to specify options such as the max number of signatures to
-	// check
-
 	// Read header
 	bufr := bufio.NewReader(r)
 	h, err := readHeader(bufr)
@@ -120,18 +131,32 @@ func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, er
 		}
 	}
 
-	if len(signatures) != 1 {
-		return parallelVerify(bufr, h, signatures, options)
+	tooManySignatures := false
+	if options != nil && options.MaxVerifications > 0 && len(signatures) > options.MaxVerifications {
+		tooManySignatures = true
+		signatures = signatures[:options.MaxVerifications]
 	}
 
-	// If there is only one signature - just verify it.
-	v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v, options)
-	if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
-		return nil, err
+	var verifs []*Verification
+	if len(signatures) == 1 {
+		// If there is only one signature - just verify it.
+		v, err := verify(h, bufr, h[signatures[0].i], signatures[0].v, options)
+		if err != nil && !IsTempFail(err) && !IsPermFail(err) && !isFail(err) {
+			return nil, err
+		}
+		v.Err = err
+		verifs = []*Verification{v}
+	} else {
+		verifs, err = parallelVerify(bufr, h, signatures, options)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	v.Err = err
-	return []*Verification{v}, nil
+	if tooManySignatures {
+		return verifs, ErrTooManySignatures
+	}
+	return verifs, nil
 }
 
 func parallelVerify(r io.Reader, h header, signatures []*signature, options *VerifyOptions) ([]*Verification, error) {
