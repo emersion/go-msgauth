@@ -57,6 +57,8 @@ var signHeaderKeys = []string{
 	"List-Archive",
 }
 
+const maxVerifications = 5
+
 func init() {
 	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed")
 	flag.StringVar(&identity, "i", "", "Server identity (defaults to hostname)")
@@ -192,8 +194,10 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 
 	// TODO: limit max. number of signatures
 	go func() {
+		options := dkim.VerifyOptions{MaxVerifications: maxVerifications}
+
 		var err error
-		s.verifs, err = dkim.Verify(pr)
+		s.verifs, err = dkim.VerifyWithOptions(pr, &options)
 		io.Copy(ioutil.Discard, pr)
 		pr.Close()
 		done <- err
@@ -227,7 +231,12 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		}
 	}
 
-	if err := <-s.done; err != nil {
+	if err := <-s.done; err == dkim.ErrTooManySignatures {
+		if verbose {
+			log.Printf("Too many signatures in message: %v", err)
+		}
+		// Ignore the error
+	} else if err != nil {
 		if verbose {
 			log.Printf("DKIM verification failed: %v", err)
 		}
