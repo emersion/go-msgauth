@@ -309,18 +309,8 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 }
 
 func loadPrivateKey(path string) (crypto.Signer, error) {
-	f, err := os.Open(privateKeyPath)
+	b, err := ioutil.ReadFile(privateKeyPath)
 	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := f.Close(); err != nil {
 		return nil, err
 	}
 
