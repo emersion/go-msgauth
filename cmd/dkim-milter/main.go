@@ -289,9 +289,11 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		})
 	}
 
-	v := authres.Format(identity, results)
-	if err := m.InsertHeader(0, "Authentication-Results", v); err != nil {
-		return nil, err
+	if len(s.verifs) > 0 || s.signer == nil {
+		v := authres.Format(identity, results)
+		if err := m.InsertHeader(0, "Authentication-Results", v); err != nil {
+			return nil, err
+		}
 	}
 
 	return milter.RespAccept, nil
