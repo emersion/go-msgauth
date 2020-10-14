@@ -13,6 +13,13 @@ var msgauthTests = []msgauthTest{
 		results:    nil,
 	},
 	{
+		value:      "example.com; dkim=none ",
+		identifier: "example.com",
+		results: []Result{
+			&DKIMResult{Value: ResultNone},
+		},
+	},
+	{
 		value: "example.com;" +
 			" spf=pass smtp.mailfrom=example.net",
 		identifier: "example.com",
