@@ -66,7 +66,6 @@ var testVerification = &Verification{
 	Domain:     "example.com",
 	Identifier: "joe@football.example.com",
 	HeaderKeys: []string{"Received", "From", "To", "Subject", "Date", "Message-ID"},
-	BodyLength: -1,
 }
 
 func TestVerify(t *testing.T) {
@@ -146,7 +145,6 @@ var testEd25519Verification = &Verification{
 	Domain:     "football.example.com",
 	Identifier: "@football.example.com",
 	HeaderKeys: []string{"from", "to", "subject", "date", "message-id", "from", "subject", "date"},
-	BodyLength: -1,
 	Time:       time.Unix(1528637909, 0),
 }
 

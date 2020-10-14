@@ -73,9 +73,6 @@ type Verification struct {
 
 	// The list of signed header fields.
 	HeaderKeys []string
-	// The number of bytes in the body which are signed. If the whole body is
-	// signed, BodyLength is < 0.
-	BodyLength int64
 
 	// The time that this signature was created. If unknown, it's set to zero.
 	Time time.Time
@@ -354,17 +351,12 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 		return verif, permFailError("unsupported body canonicalization algorithm")
 	}
 
-	var bodyLen int64 = -1
-	if lenStr, ok := params["l"]; ok {
-		l, err := strconv.ParseInt(stripWhitespace(lenStr), 10, 64)
-		if err != nil {
-			return verif, permFailError("malformed body length: " + err.Error())
-		} else if l < 0 {
-			return verif, permFailError("malformed body length: negative value")
-		}
-		bodyLen = l
+	// The body length "l" parameter is insecure, because it allows parts of
+	// the message body to not be signed. Reject messages which have it set.
+	if _, ok := params["l"]; ok {
+		// TODO: technically should be policyError
+		return verif, failError("message contains an insecure body length tag")
 	}
-	verif.BodyLength = bodyLen
 
 	// Parse body hash and signature
 	bodyHashed, err := decodeBase64String(params["bh"])
@@ -378,11 +370,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 
 	// Check body hash
 	hasher := hash.New()
-	var w io.Writer = hasher
-	if bodyLen >= 0 {
-		w = &limitedWriter{W: w, N: bodyLen}
-	}
-	wc := canonicalizers[bodyCan].CanonicalizeBody(w)
+	wc := canonicalizers[bodyCan].CanonicalizeBody(hasher)
 	if _, err := io.Copy(wc, r); err != nil {
 		return verif, err
 	}
