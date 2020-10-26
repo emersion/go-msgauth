@@ -154,6 +154,31 @@ func getIdentity(authRes string) string {
 	return strings.TrimSpace(parts[0])
 }
 
+func shouldDeleteAuthRes(field string) bool {
+	id, results, err := authres.Parse(field)
+	if err != nil {
+		// Delete fields we can't parse, because other implementations might
+		// accept malformed fields
+		return true
+	}
+
+	if !strings.EqualFold(id, identity) {
+		// Not our Authentication-Results, ignore the field
+		return false
+	}
+
+	for _, res := range results {
+		if _, ok := res.(*authres.DKIMResult); ok {
+			// Delete existing DKIM Authentication-Results fields
+			return true
+		}
+	}
+
+	// This is our Authentication-Results field, but it isn't about DKIM. Maybe
+	// a previous milter has generated it (e.g. SPF), so keep it.
+	return false
+}
+
 func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Response, error) {
 	// Write final CRLF to begin message body
 	if _, err := s.headerBuf.WriteString("\r\n"); err != nil {
@@ -163,7 +188,7 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 	// Delete any existing Authentication-Results header field with our identity
 	fields := h["Authentication-Results"]
 	for i, field := range fields {
-		if strings.EqualFold(identity, getIdentity(field)) {
+		if shouldDeleteAuthRes(field) {
 			s.authResDelete = append(s.authResDelete, i)
 		}
 	}
