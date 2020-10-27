@@ -345,6 +345,12 @@ func loadPrivateKey(path string) (crypto.Signer, error) {
 	}
 
 	switch strings.ToUpper(block.Type) {
+	case "PRIVATE KEY":
+		k, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		return k.(crypto.Signer), nil
 	case "RSA PRIVATE KEY":
 		return x509.ParsePKCS1PrivateKey(block.Bytes)
 	case "EDDSA PRIVATE KEY":
