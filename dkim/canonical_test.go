@@ -2,6 +2,7 @@ package dkim
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 )
 
@@ -166,5 +167,35 @@ func TestRelaxedCanonicalizer_CanonicalBody(t *testing.T) {
 		} else if s := b.String(); s != test.canonical {
 			t.Errorf("Expected canonical body for %q to be %q, but got %q", test.original, test.canonical, s)
 		}
+	}
+}
+
+func Test_fixCRLF(t *testing.T) {
+
+	tests := []struct {
+		name      string
+		got       string
+		want      string
+		isRelaxed bool
+	}{
+		{
+			name:      "t1",
+			got:       "test\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r",
+			want:      "test\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest",
+			isRelaxed: true,
+		},
+		{
+			name:      "t2",
+			got:       "test\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r",
+			want:      "test\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r\ntest\r",
+			isRelaxed: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := fixCRLF([]byte(tt.got), tt.isRelaxed); !reflect.DeepEqual(got, []byte(tt.want)) {
+				t.Errorf("Expected fixCRLF for body %q to be %q, but got %q", []byte(tt.got), []byte(tt.want), got)
+			}
+		})
 	}
 }

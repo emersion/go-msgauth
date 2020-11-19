@@ -27,11 +27,14 @@ var canonicalizers = map[Canonicalization]canonicalizer{
 }
 
 // Fix any \n without a matching \r
-func fixCRLF(b []byte) []byte {
+func fixCRLF(b []byte, isRelaxed bool) []byte {
 	res := make([]byte, 0, len(b))
 	for i := range b {
 		if b[i] == '\n' && (i == 0 || b[i-1] != '\r') {
 			res = append(res, '\r')
+		}
+		if isRelaxed && i == len(b)-1 && b[i] == '\r' {
+			break
 		}
 		res = append(res, b[i])
 	}
@@ -53,7 +56,7 @@ func (c *simpleBodyCanonicalizer) Write(b []byte) (int, error) {
 	written := len(b)
 	b = append(c.crlfBuf, b...)
 
-	b = fixCRLF(b)
+	b = fixCRLF(b, false)
 
 	end := len(b)
 	// If it ends with \r, maybe the next write will begin with \n
@@ -125,7 +128,7 @@ type relaxedBodyCanonicalizer struct {
 func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 	written := len(b)
 
-	b = fixCRLF(b)
+	b = fixCRLF(b, true)
 
 	canonical := make([]byte, 0, len(b))
 	for _, ch := range b {
