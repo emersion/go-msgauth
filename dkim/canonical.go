@@ -28,12 +28,13 @@ var canonicalizers = map[Canonicalization]canonicalizer{
 
 // Fix any \n without a matching \r
 func fixCRLF(b []byte, isRelaxed bool) []byte {
-	res := make([]byte, 0, len(b))
+	lengthb := len(b)
+	res := make([]byte, 0, lengthb)
 	for i := range b {
 		if b[i] == '\n' && (i == 0 || b[i-1] != '\r') {
 			res = append(res, '\r')
 		}
-		if isRelaxed && i == len(b)-1 && b[i] == '\r' {
+		if isRelaxed && i == lengthb-1 && b[i] == '\r' {
 			break
 		}
 		res = append(res, b[i])
