@@ -15,6 +15,7 @@ import (
 	"net/textproto"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"syscall"
 
@@ -60,7 +61,7 @@ var signHeaderKeys = []string{
 const maxVerifications = 5
 
 func init() {
-	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed")
+	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed (matched using path.Match)")
 	flag.StringVar(&identity, "i", "", "Server identity (defaults to hostname)")
 	flag.StringVar(&listenURI, "l", "unix:///tmp/dkim-milter.sock", "Listen URI")
 	flag.StringVar(&privateKeyPath, "k", "", "Private key (PEM-formatted)")
@@ -127,12 +128,15 @@ func (s *session) Header(name string, value string, m *milter.Modifier) (milter.
 	if strings.EqualFold(name, "From") || strings.EqualFold(name, "Sender") {
 		domain, err := parseAddressDomain(value)
 		if err != nil {
-			return nil, fmt.Errorf("dkim-milter: failed to parse header field '%v': %v", name, err)
+			return nil, fmt.Errorf("dkim-milter: failed to parse header field %q: %v", name, err)
 		}
+		domain = strings.ToLower(domain)
 
-		for _, d := range signDomains {
-			if strings.EqualFold(d, domain) {
-				s.signDomain = d
+		for _, pattern := range signDomains {
+			if ok, err := path.Match(pattern, domain); err != nil {
+				return nil, fmt.Errorf("dkim-milter: failed to match domain %q: %v", domain, err)
+			} else if ok {
+				s.signDomain = domain
 				break
 			}
 		}
@@ -376,6 +380,13 @@ func main() {
 
 	if (len(signDomains) > 0 || privateKeyPath != "" || selector != "") && !(len(signDomains) > 0 && privateKeyPath != "" && selector != "") {
 		log.Fatal("Domain(s) (-d) and private key (-k) must be both specified")
+	}
+
+	for i, pattern := range signDomains {
+		if _, err := path.Match(pattern, ""); err != nil {
+			log.Fatalf("Malformed domain pattern %q: %v", pattern, err)
+		}
+		signDomains[i] = strings.ToLower(pattern)
 	}
 
 	if privateKeyPath != "" {
