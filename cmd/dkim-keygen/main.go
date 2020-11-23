@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("Failed to marshal private key: %v", err)
 	}
 
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		log.Fatalf("Failed to create key file: %v", err)
 	}
