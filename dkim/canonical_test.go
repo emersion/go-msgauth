@@ -168,3 +168,24 @@ func TestRelaxedCanonicalizer_CanonicalBody(t *testing.T) {
 		}
 	}
 }
+
+func TestRelaxedCanonicalizer_CanonicalBody_splitCRLF(t *testing.T) {
+	want := "line 1\r\nline 2\r\n"
+	writes := [][]byte{
+		[]byte("line 1\r"),
+		[]byte("\nline 2"),
+	}
+
+	var b bytes.Buffer
+	wc := new(relaxedCanonicalizer).CanonicalizeBody(&b)
+	for _, b := range writes {
+		if _, err := wc.Write(b); err != nil {
+			t.Errorf("Expected no error while writing to relaxed body canonicalizer, got: %v", err)
+		}
+	}
+	if err := wc.Close(); err != nil {
+		t.Errorf("Expected no error while closing relaxed body canonicalizer, got: %v", err)
+	} else if s := b.String(); s != want {
+		t.Errorf("Expected canonical body to be %q, but got %q", want, s)
+	}
+}

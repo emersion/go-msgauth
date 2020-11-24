@@ -26,14 +26,25 @@ var canonicalizers = map[Canonicalization]canonicalizer{
 	CanonicalizationRelaxed: new(relaxedCanonicalizer),
 }
 
-// Fix any \n without a matching \r
-func fixCRLF(b []byte) []byte {
+// crlfFixer fixes any lone LF without a preceding CR.
+type crlfFixer struct {
+	cr bool
+}
+
+func (cf *crlfFixer) Fix(b []byte) []byte {
 	res := make([]byte, 0, len(b))
-	for i := range b {
-		if b[i] == '\n' && (i == 0 || b[i-1] != '\r') {
-			res = append(res, '\r')
+	for _, ch := range b {
+		prevCR := cf.cr
+		cf.cr = false
+		switch ch {
+		case '\r':
+			cf.cr = true
+		case '\n':
+			if !prevCR {
+				res = append(res, '\r')
+			}
 		}
-		res = append(res, b[i])
+		res = append(res, ch)
 	}
 	return res
 }
@@ -45,15 +56,16 @@ func (c *simpleCanonicalizer) CanonicalizeHeader(s string) string {
 }
 
 type simpleBodyCanonicalizer struct {
-	w       io.Writer
-	crlfBuf []byte
+	w         io.Writer
+	crlfBuf   []byte
+	crlfFixer crlfFixer
 }
 
 func (c *simpleBodyCanonicalizer) Write(b []byte) (int, error) {
 	written := len(b)
 	b = append(c.crlfBuf, b...)
 
-	b = fixCRLF(b)
+	b = c.crlfFixer.Fix(b)
 
 	end := len(b)
 	// If it ends with \r, maybe the next write will begin with \n
@@ -116,16 +128,17 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 }
 
 type relaxedBodyCanonicalizer struct {
-	w       io.Writer
-	crlfBuf []byte
-	wspBuf  []byte
-	written bool
+	w         io.Writer
+	crlfBuf   []byte
+	wspBuf    []byte
+	written   bool
+	crlfFixer crlfFixer
 }
 
 func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 	written := len(b)
 
-	b = fixCRLF(b)
+	b = c.crlfFixer.Fix(b)
 
 	canonical := make([]byte, 0, len(b))
 	for _, ch := range b {
