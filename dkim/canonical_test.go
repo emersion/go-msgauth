@@ -160,9 +160,9 @@ func TestRelaxedCanonicalizer_CanonicalBody(t *testing.T) {
 
 		wc := c.CanonicalizeBody(&b)
 		if _, err := wc.Write([]byte(test.original)); err != nil {
-			t.Errorf("Expected no error while writing to simple body canonicalizer, got: %v", err)
+			t.Errorf("Expected no error while writing to relaxed body canonicalizer, got: %v", err)
 		} else if err := wc.Close(); err != nil {
-			t.Errorf("Expected no error while closing simple body canonicalizer, got: %v", err)
+			t.Errorf("Expected no error while closing relaxed body canonicalizer, got: %v", err)
 		} else if s := b.String(); s != test.canonical {
 			t.Errorf("Expected canonical body for %q to be %q, but got %q", test.original, test.canonical, s)
 		}
