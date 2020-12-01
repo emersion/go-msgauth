@@ -332,6 +332,173 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	return err
 }
 
+func SignByteBuffer(in io.Reader, options *SignOptions) ([]byte, error) {
+	if options == nil {
+		return nil, fmt.Errorf("dkim: no options specified")
+	}
+	if options.Domain == "" {
+		return nil, fmt.Errorf("dkim: no domain specified")
+	}
+	if options.Selector == "" {
+		return nil, fmt.Errorf("dkim: no selector specified")
+	}
+	if options.Signer == nil {
+		return nil, fmt.Errorf("dkim: no signer specified")
+	}
+
+	headerCan := options.HeaderCanonicalization
+	if headerCan == "" {
+		headerCan = CanonicalizationSimple
+	}
+	if _, ok := canonicalizers[headerCan]; !ok {
+		return nil, fmt.Errorf("dkim: unknown header canonicalization %q", headerCan)
+	}
+
+	bodyCan := options.BodyCanonicalization
+	if bodyCan == "" {
+		bodyCan = CanonicalizationSimple
+	}
+	if _, ok := canonicalizers[bodyCan]; !ok {
+		return nil, fmt.Errorf("dkim: unknown body canonicalization %q", bodyCan)
+	}
+
+	var keyAlgo string
+	switch options.Signer.Public().(type) {
+	case *rsa.PublicKey:
+		keyAlgo = "rsa"
+	case ed25519.PublicKey:
+		keyAlgo = "ed25519"
+	default:
+		return nil, fmt.Errorf("dkim: unsupported key algorithm %T", options.Signer.Public())
+	}
+
+	hash := options.Hash
+	var hashAlgo string
+	switch options.Hash {
+	case 0: // sha256 is the default
+		hash = crypto.SHA256
+		fallthrough
+	case crypto.SHA256:
+		hashAlgo = "sha256"
+	case crypto.SHA1:
+		return nil, fmt.Errorf("dkim: hash algorithm too weak: sha1")
+	default:
+		return nil, fmt.Errorf("dkim: unsupported hash algorithm")
+	}
+
+	if options.HeaderKeys != nil {
+		ok := false
+		for _, k := range options.HeaderKeys {
+			if strings.EqualFold(k, "From") {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return nil, fmt.Errorf("dkim: the From header field must be signed")
+		}
+	}
+
+	// Read header
+	inReader := bufio.NewReader(in)
+	header, err := readHeader(inReader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hash body
+	hasher := hash.New()
+	can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
+	if _, err := io.Copy(can, inReader); err != nil {
+		return nil, err
+	}
+	if err := can.Close(); err != nil {
+		return nil, err
+	}
+	bodyHashed := hasher.Sum(nil)
+
+	params := map[string]string{
+		"v":  "1",
+		"a":  keyAlgo + "-" + hashAlgo,
+		"bh": base64.StdEncoding.EncodeToString(bodyHashed),
+		"c":  string(headerCan) + "/" + string(bodyCan),
+		"d":  options.Domain,
+		//"l": "", // TODO
+		"s": options.Selector,
+		"t": formatTime(now()),
+		//"z": "", // TODO
+	}
+
+	var headerKeys []string
+	if options.HeaderKeys != nil {
+		headerKeys = options.HeaderKeys
+	} else {
+		for _, kv := range header {
+			k, _ := parseHeaderField(kv)
+			headerKeys = append(headerKeys, k)
+		}
+	}
+	params["h"] = formatTagList(headerKeys)
+
+	if options.Identifier != "" {
+		params["i"] = options.Identifier
+	}
+
+	if options.QueryMethods != nil {
+		methods := make([]string, len(options.QueryMethods))
+		for i, method := range options.QueryMethods {
+			methods[i] = string(method)
+		}
+		params["q"] = formatTagList(methods)
+	}
+
+	if !options.Expiration.IsZero() {
+		params["x"] = formatTime(options.Expiration)
+	}
+
+	// Hash and sign headers
+	hasher.Reset()
+	picker := newHeaderPicker(header)
+	for _, k := range headerKeys {
+		kv := picker.Pick(k)
+		if kv == "" {
+			// The Signer MAY include more instances of a header field name
+			// in "h=" than there are actual corresponding header fields so
+			// that the signature will not verify if additional header
+			// fields of that name are added.
+			continue
+		}
+
+		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+		if _, err := io.WriteString(hasher, kv); err != nil {
+			return nil, err
+		}
+	}
+
+	params["b"] = ""
+	sigField := formatSignature(params)
+	sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
+	sigField = strings.TrimRight(sigField, crlf)
+	if _, err := io.WriteString(hasher, sigField); err != nil {
+		return nil, err
+	}
+	hashed := hasher.Sum(nil)
+
+	// Don't pass Hash to Sign for ed25519 as it doesn't support it
+	// and will return an error ("ed25519: cannot sign hashed message").
+	if keyAlgo == "ed25519" {
+		hash = crypto.Hash(0)
+	}
+
+	sig, err := options.Signer.Sign(randReader, hashed, hash)
+	if err != nil {
+		return nil, err
+	}
+	params["b"] = base64.StdEncoding.EncodeToString(sig)
+
+	return []byte(formatSignature(params)), nil
+}
+
 func formatSignature(params map[string]string) string {
 	sig := formatHeaderParams(headerFieldName, params)
 	return sig
