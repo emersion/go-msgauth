@@ -81,6 +81,8 @@ func (f *stringSliceFlag) Set(value string) error {
 }
 
 type session struct {
+	milter.NoOpMilter
+
 	authResDelete []int
 	headerBuf     bytes.Buffer
 
@@ -92,22 +94,6 @@ type session struct {
 	verifs []*dkim.Verification // only valid after done is closed
 	signer *dkim.Signer
 	mw     io.Writer
-}
-
-func (s *session) Connect(host string, family string, port uint16, addr net.IP, m *milter.Modifier) (milter.Response, error) {
-	return nil, nil
-}
-
-func (s *session) Helo(name string, m *milter.Modifier) (milter.Response, error) {
-	return nil, nil
-}
-
-func (s *session) MailFrom(from string, m *milter.Modifier) (milter.Response, error) {
-	return nil, nil
-}
-
-func (s *session) RcptTo(rcptTo string, m *milter.Modifier) (milter.Response, error) {
-	return nil, nil
 }
 
 func parseAddressDomain(s string) (string, error) {
