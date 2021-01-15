@@ -1,6 +1,6 @@
 # go-msgauth
 
-[![GoDoc](https://godoc.org/github.com/emersion/go-msgauth?status.svg)](https://godoc.org/github.com/emersion/go-msgauth)
+[![godocs.io](https://godocs.io/github.com/emersion/go-msgauth?status.svg)](https://godocs.io/github.com/emersion/go-msgauth)
 [![builds.sr.ht status](https://builds.sr.ht/~emersion/go-msgauth.svg?)](https://builds.sr.ht/~emersion/go-msgauth)
 [![codecov](https://codecov.io/gh/emersion/go-msgauth/branch/master/graph/badge.svg)](https://codecov.io/gh/emersion/go-msgauth)
 
@@ -10,7 +10,7 @@ A Go library to authenticate e-mails:
 * Create and parse [Authentication-Results header fields][Authentication-Results]
 * Fetch [DMARC] records
 
-## DKIM [![GoDoc](https://godoc.org/github.com/emersion/go-msgauth/dkim?status.svg)](https://godoc.org/github.com/emersion/go-msgauth/dkim)
+## DKIM [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/dkim?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/dkim)
 
 ### Sign
 
@@ -58,7 +58,7 @@ the one computed from the raw header.
 **How can I publish my public key?** You have to add a TXT record to your DNS
 zone. See [RFC 6376 appendix C](https://tools.ietf.org/html/rfc6376#appendix-C).
 
-## Authentication-Results [![GoDoc](https://godoc.org/github.com/emersion/go-msgauth/authres?status.svg)](https://godoc.org/github.com/emersion/go-msgauth/authres)
+## Authentication-Results [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/authres?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/authres)
 
 ```go
 // Format
@@ -78,7 +78,7 @@ if err != nil {
 log.Println(identifier, results)
 ```
 
-## DMARC [![GoDoc](https://godoc.org/github.com/emersion/go-msgauth/dmarc?status.svg)](https://godoc.org/github.com/emersion/go-msgauth/dmarc)
+## DMARC [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/dmarc?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/dmarc)
 
 See the GoDoc page.
 
