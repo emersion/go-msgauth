@@ -17,7 +17,7 @@ func main() {
 		if v.Err == nil {
 			log.Printf("Valid signature for %v (selector=%s) (algo=%s)", v.Domain, v.Selector, v.QueryResult.KeyAlgo)
 		} else {
-			log.Printf("Valid signature for %v (selector=%s) (algo=%s): %v", v.Domain, v.Selector, v.QueryResult.KeyAlgo, v.Err)
+			log.Printf("Invalid signature for %v (selector=%s) (algo=%s): %v", v.Domain, v.Selector, v.QueryResult.KeyAlgo, v.Err)
 		}
 	}
 }
