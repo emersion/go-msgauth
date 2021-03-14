@@ -67,6 +67,10 @@ type Verification struct {
 	// The SDID claiming responsibility for an introduction of a message into the
 	// mail stream.
 	Domain string
+
+	// The Selector is the s value of the DKIM-Signature header
+	Selector string
+
 	// The Agent or User Identifier (AUID) on behalf of which the SDID is taking
 	// responsibility.
 	Identifier string
@@ -78,6 +82,9 @@ type Verification struct {
 	Time time.Time
 	// The expiration time. If the signature doesn't expire, it's set to zero.
 	Expiration time.Time
+
+	// The QueryResult holds the parsed DNS response
+	QueryResult *queryResult
 
 	// Err is nil if the signature is valid.
 	Err error
@@ -221,6 +228,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 		return verif, permFailError("incompatible signature version")
 	}
 
+	verif.Selector = stripWhitespace(params["s"])
 	verif.Domain = stripWhitespace(params["d"])
 
 	for _, tag := range requiredTags {
@@ -286,11 +294,13 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 			break
 		}
 	}
+
 	if err != nil {
 		return verif, err
 	} else if res == nil {
 		return verif, permFailError("unsupported public key query method")
 	}
+	verif.QueryResult = res
 
 	// Parse algos
 	algos := strings.SplitN(stripWhitespace(params["a"]), "-", 2)

@@ -15,9 +15,9 @@ func main() {
 
 	for _, v := range verifications {
 		if v.Err == nil {
-			log.Printf("Valid signature for %v", v.Domain)
+			log.Printf("Valid signature for %v (selector=%s) (algo=%s)", v.Domain, v.Selector, v.QueryResult.KeyAlgo)
 		} else {
-			log.Printf("Invalid signature for %v: %v", v.Domain, v.Err)
+			log.Printf("Valid signature for %v (selector=%s) (algo=%s): %v", v.Domain, v.Selector, v.QueryResult.KeyAlgo, v.Err)
 		}
 	}
 }
