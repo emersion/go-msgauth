@@ -41,9 +41,9 @@ if err != nil {
 
 for _, v := range verifications {
 	if v.Err == nil {
-		log.Println("Valid signature for:", v.Domain)
+        log.Printf("Valid signature for %v (selector=%s) (algo=%s)", v.Domain, v.Selector, v.QueryResult.KeyAlgo)
 	} else {
-		log.Println("Invalid signature for:", v.Domain, v.Err)
+        log.Printf("Invalid signature for %v (selector=%s) (algo=%s): %v", v.Domain, v.Selector, v.QueryResult.KeyAlgo, v.Err)
 	}
 }
 ```
