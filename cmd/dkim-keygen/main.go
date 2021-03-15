@@ -73,7 +73,16 @@ func main() {
 	var pubBytes []byte
 	switch pubKey := privKey.Public().(type) {
 	case *rsa.PublicKey:
-		pubBytes = x509.MarshalPKCS1PublicKey(pubKey)
+		// RFC 6376 is inconsistent about whether RSA public keys should
+		// be formatted as RSAPublicKey or SubjectPublicKeyInfo.
+		// Erratum 3017 (https://www.rfc-editor.org/errata/eid3017)
+		// proposes allowing both.  We use SubjectPublicKeyInfo for
+		// consistency with other implementations including opendkim,
+		// Gmail, and Fastmail.
+		pubBytes, err = x509.MarshalPKIXPublicKey(pubKey)
+		if err != nil {
+			log.Fatalf("Failed to marshal public key: %v", err)
+		}
 	case ed25519.PublicKey:
 		pubBytes = pubKey
 	default:

@@ -118,7 +118,14 @@ func parsePublicKey(s string) (*queryResult, error) {
 	case "rsa", "":
 		pub, err := x509.ParsePKIXPublicKey(b)
 		if err != nil {
-			return nil, permFailError("key syntax error: " + err.Error())
+			// RFC 6376 is inconsistent about whether RSA public keys should
+			// be formatted as RSAPublicKey or SubjectPublicKeyInfo.
+			// Erratum 3017 (https://www.rfc-editor.org/errata/eid3017) proposes
+			// allowing both.
+			pub, err = x509.ParsePKCS1PublicKey(b)
+			if err != nil {
+				return nil, permFailError("key syntax error: " + err.Error())
+			}
 		}
 		rsaPub, ok := pub.(*rsa.PublicKey)
 		if !ok {
