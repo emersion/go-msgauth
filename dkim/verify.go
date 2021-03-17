@@ -84,7 +84,7 @@ type Verification struct {
 	Expiration time.Time
 
 	// The QueryResult holds the parsed DNS response
-	QueryResult *queryResult
+	QueryResult *QueryResult
 
 	// Err is nil if the signature is valid.
 	Err error
@@ -283,7 +283,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	if methodsStr, ok := params["q"]; ok {
 		methods = parseTagList(methodsStr)
 	}
-	var res *queryResult
+	var res *QueryResult
 	for _, method := range methods {
 		if query, ok := queryMethods[QueryMethod(method)]; ok {
 			if options != nil {

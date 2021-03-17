@@ -45,7 +45,7 @@ func (v ed25519Verifier) Verify(hash crypto.Hash, hashed, sig []byte) error {
 	return nil
 }
 
-type queryResult struct {
+type QueryResult struct {
 	Verifier  verifier
 	KeyAlgo   string
 	HashAlgos []string
@@ -63,13 +63,13 @@ const (
 )
 
 type txtLookupFunc func(domain string) ([]string, error)
-type queryFunc func(domain, selector string, txtLookup txtLookupFunc) (*queryResult, error)
+type queryFunc func(domain, selector string, txtLookup txtLookupFunc) (*QueryResult, error)
 
 var queryMethods = map[QueryMethod]queryFunc{
 	QueryMethodDNSTXT: queryDNSTXT,
 }
 
-func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult, error) {
+func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*QueryResult, error) {
 	var txts []string
 	var err error
 	if txtLookup != nil {
@@ -90,13 +90,13 @@ func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult
 	return parsePublicKey(txt)
 }
 
-func parsePublicKey(s string) (*queryResult, error) {
+func parsePublicKey(s string) (*QueryResult, error) {
 	params, err := parseHeaderParams(s)
 	if err != nil {
 		return nil, permFailError("key syntax error: " + err.Error())
 	}
 
-	res := new(queryResult)
+	res := new(QueryResult)
 
 	if v, ok := params["v"]; ok && v != "DKIM1" {
 		return nil, permFailError("incompatible public key version")

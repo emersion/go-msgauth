@@ -65,7 +65,17 @@ Joe.
 var testVerification = &Verification{
 	Domain:     "example.com",
 	Identifier: "joe@football.example.com",
+	Selector:   "brisbane",
 	HeaderKeys: []string{"Received", "From", "To", "Subject", "Date", "Message-ID"},
+	Time:       time.Time{},
+	Expiration: time.Time{},
+	Err:        nil,
+}
+
+func newRSATestVerification() *Verification {
+	testQueryResult, _ := parsePublicKey(dnsPublicKey)
+	testVerification.QueryResult = testQueryResult
+	return testVerification
 }
 
 func TestVerify(t *testing.T) {
@@ -79,7 +89,10 @@ func TestVerify(t *testing.T) {
 	}
 
 	v := verifications[0]
+	testVerification := newRSATestVerification()
+
 	if !reflect.DeepEqual(testVerification, v) {
+
 		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testVerification, v)
 	}
 }
@@ -95,6 +108,7 @@ func TestVerifyWithOption(t *testing.T) {
 	}
 
 	v := verifications[0]
+	testVerification := newRSATestVerification()
 	if !reflect.DeepEqual(testVerification, v) {
 		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testVerification, v)
 	}
@@ -144,8 +158,15 @@ Joe.`
 var testEd25519Verification = &Verification{
 	Domain:     "football.example.com",
 	Identifier: "@football.example.com",
+	Selector:   "brisbane",
 	HeaderKeys: []string{"from", "to", "subject", "date", "message-id", "from", "subject", "date"},
 	Time:       time.Unix(1528637909, 0),
+}
+
+func newEC25519TestVerification() *Verification {
+	testQueryResult, _ := parsePublicKey(dnsEd25519PublicKey)
+	testEd25519Verification.QueryResult = testQueryResult
+	return testEd25519Verification
 }
 
 func TestVerify_ed25519(t *testing.T) {
@@ -159,6 +180,7 @@ func TestVerify_ed25519(t *testing.T) {
 	}
 
 	v := verifications[0]
+	testEd25519Verification := newEC25519TestVerification()
 	if !reflect.DeepEqual(testEd25519Verification, v) {
 		t.Errorf("Expected verification to be \n%+v\n but got \n%+v", testEd25519Verification, v)
 	}
