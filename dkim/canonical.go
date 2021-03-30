@@ -130,7 +130,7 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 type relaxedBodyCanonicalizer struct {
 	w         io.Writer
 	crlfBuf   []byte
-	wspBuf    []byte
+	wsp       bool
 	written   bool
 	crlfFixer crlfFixer
 }
@@ -143,18 +143,18 @@ func (c *relaxedBodyCanonicalizer) Write(b []byte) (int, error) {
 	canonical := make([]byte, 0, len(b))
 	for _, ch := range b {
 		if ch == ' ' || ch == '\t' {
-			c.wspBuf = append(c.wspBuf, ch)
+			c.wsp = true
 		} else if ch == '\r' || ch == '\n' {
-			c.wspBuf = nil
+			c.wsp = false
 			c.crlfBuf = append(c.crlfBuf, ch)
 		} else {
 			if len(c.crlfBuf) > 0 {
 				canonical = append(canonical, c.crlfBuf...)
-				c.crlfBuf = nil
+				c.crlfBuf = c.crlfBuf[:0]
 			}
-			if len(c.wspBuf) > 0 {
+			if c.wsp {
 				canonical = append(canonical, ' ')
-				c.wspBuf = nil
+				c.wsp = false
 			}
 
 			canonical = append(canonical, ch)
