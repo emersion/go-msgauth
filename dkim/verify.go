@@ -241,7 +241,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	headerKeys := parseTagList(params["h"])
 	ok := false
 	for _, k := range headerKeys {
-		if strings.ToLower(k) == "from" {
+		if strings.EqualFold(k, "from") {
 			ok = true
 			break
 		}

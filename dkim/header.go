@@ -149,13 +149,12 @@ func newHeaderPicker(h header) *headerPicker {
 }
 
 func (p *headerPicker) Pick(key string) string {
-	key = strings.ToLower(key)
 	at := p.picked[key]
 	for i := len(p.h) - 1; i >= 0; i-- {
 		kv := p.h[i]
 		k, _ := parseHeaderField(kv)
 
-		if strings.ToLower(k) != key {
+		if !strings.EqualFold(k, key) {
 			continue
 		}
 
