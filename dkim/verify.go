@@ -292,6 +292,20 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 		return verif, permFailError("unsupported public key query method")
 	}
 
+	// Parse flags
+	for _, flag := range res.Flags {
+		switch flag {
+		case "y":
+			// domain is testing DKIM.
+			return verif, nil
+		case "s":
+			// i domain and d domain should be equal
+			if !strings.HasSuffix(verif.Identifier, "@"+verif.Domain) {
+				return verif, permFailError("identifier and domain mismatch")
+			}
+		}
+	}
+
 	// Parse algos
 	algos := strings.SplitN(stripWhitespace(params["a"]), "-", 2)
 	if len(algos) != 2 {

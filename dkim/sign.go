@@ -74,7 +74,7 @@ type SignOptions struct {
 //
 // The whole message header and body must be written to the Signer. Close should
 // always be called (either after the whole message has been written, or after
-// an error occured and the signer won't be used anymore). Close may return an
+// an error occurred and the signer won't be used anymore). Close may return an
 // error in case signing fails.
 //
 // After a successful Close, Signature can be called to retrieve the
