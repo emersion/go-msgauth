@@ -3,7 +3,7 @@
 [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth?status.svg)](https://godocs.io/github.com/emersion/go-msgauth)
 [![builds.sr.ht status](https://builds.sr.ht/~emersion/go-msgauth/commits/master.svg?)](https://builds.sr.ht/~emersion/go-msgauth/commits/master)
 
-A Go library to authenticate e-mails:
+A Go library and tools to authenticate e-mails:
 
 * Create and verify [DKIM signatures][DKIM]
 * Create and parse [Authentication-Results header fields][Authentication-Results]
@@ -56,6 +56,8 @@ the one computed from the raw header.
 
 **How can I publish my public key?** You have to add a TXT record to your DNS
 zone. See [RFC 6376 appendix C](https://tools.ietf.org/html/rfc6376#appendix-C).
+You can use the `dkim-keygen` tool included in go-msgauth to generate the key
+and the TXT record.
 
 ## Authentication-Results [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/authres?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/authres)
 
@@ -80,6 +82,15 @@ log.Println(identifier, results)
 ## DMARC [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/dmarc?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/dmarc)
 
 See the GoDoc page.
+
+## Tools
+
+A few tools are included in go-msgauth:
+
+- `dkim-keygen`: generate a DKIM key
+- `dkim-milter`: a mail filter to sign and verify DKIM signatures
+- `dkim-verify`: verify a DKIM-signed email
+- `dmarc-lookup`: lookup the DMARC policy of a domain
 
 ## License
 
