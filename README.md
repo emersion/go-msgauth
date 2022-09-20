@@ -14,6 +14,13 @@ A Go library and tools to authenticate e-mails:
 ### Sign
 
 ```go
+import (
+    "bytes"
+    "log"
+    "strings"
+    "github.com/emersion/go-msgauth/dkim"
+)
+
 r := strings.NewReader(mailString)
 
 options := &dkim.SignOptions{
@@ -31,6 +38,12 @@ if err := dkim.Sign(&b, r, options); err != nil {
 ### Verify
 
 ```go
+import (
+    "log"
+    "strings"
+    "github.com/emersion/go-msgauth/dkim"
+)
+
 r := strings.NewReader(mailString)
 
 verifications, err := dkim.Verify(r)
@@ -62,6 +75,11 @@ and the TXT record.
 ## Authentication-Results [![godocs.io](https://godocs.io/github.com/emersion/go-msgauth/authres?status.svg)](https://godocs.io/github.com/emersion/go-msgauth/authres)
 
 ```go
+import (
+    "log"
+    "github.com/emersion/go-msgauth/authres"
+)
+
 // Format
 results := []authres.Result{
 	&authres.SPFResult{Value: authres.ResultPass, From: "example.net"},
