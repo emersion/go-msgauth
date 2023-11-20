@@ -84,10 +84,18 @@ func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult
 		return nil, permFailError("no key for signature: " + err.Error())
 	}
 
-	// Long keys are split in multiple parts
-	txt := strings.Join(txts, "")
+	// net.LookupTXT will concatenate strings contained in a single TXT record.
+	// In other words, net.LookupTXT returns one entry per TXT record, even if
+	// a record contains multiple strings.
+	for _, txt := range txts {
+		// RFC 7489 section 6.6.3 says records not starting with "v=" should be
+		// ignored
+		if strings.HasPrefix(txt, "v=") {
+			return parsePublicKey(txt)
+		}
+	}
 
-	return parsePublicKey(txt)
+	return nil, permFailError("no valid key found")
 }
 
 func parsePublicKey(s string) (*queryResult, error) {
