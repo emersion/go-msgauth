@@ -121,7 +121,6 @@ func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
 	if len(kv) > 1 {
 		v = rxReduceWS.ReplaceAllString(kv[1], " ")
 		v = strings.TrimSpace(v)
-
 	}
 
 	return k + ":" + v + crlf
