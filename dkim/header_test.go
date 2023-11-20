@@ -133,7 +133,18 @@ func TestHeaderPicker_Pick(t *testing.T) {
 				t.Errorf("Parameter %s not found in headers %s", k, headers)
 			}
 		}
-
+	})
+	t.Run("non-canonical header fields", func(t *testing.T) {
+		headers := header{
+			"Message-ID: asdf",
+		}
+		picker := newHeaderPicker(headers)
+		if v := picker.Pick("Message-Id"); v != headers[0] {
+			t.Errorf("Pick() = %q, want %q", v, headers[0])
+		}
+		if v := picker.Pick("Message-ID"); v != "" {
+			t.Errorf("Pick() = %q, want %q", v, "")
+		}
 	})
 }
 
