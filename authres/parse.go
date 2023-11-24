@@ -1,7 +1,9 @@
 package authres
 
 import (
+	"bufio"
 	"errors"
+	"io"
 	"strings"
 	"unicode"
 )
@@ -222,58 +224,94 @@ var results = map[string]newResultFunc{
 // Parse parses the provided Authentication-Results header field. It returns the
 // authentication service identifier and authentication results.
 func Parse(v string) (identifier string, results []Result, err error) {
-	parts := strings.Split(v, ";")
+	p := newParser(v)
 
-	identifier = strings.TrimSpace(parts[0])
-	i := strings.IndexFunc(identifier, unicode.IsSpace)
-	if i > 0 {
-		version := strings.TrimSpace(identifier[i:])
-		if version != "1" {
-			return "", nil, errors.New("msgauth: unsupported version")
-		}
-
-		identifier = identifier[:i]
+	identifier, err = p.getIndentifier()
+	if err != nil {
+		return identifier, nil, err
 	}
 
-	for i := 1; i < len(parts); i++ {
-		s := strings.TrimSpace(parts[i])
-		if s == "" {
-			continue
+	for {
+		result, err := p.getResult()
+		if result == nil {
+			break
 		}
-
-		result, err := parseResult(s)
-		if err != nil {
+		results = append(results, result)
+		if err == io.EOF {
+			break
+		} else if err != nil {
 			return identifier, results, err
 		}
-		if result != nil {
-			results = append(results, result)
-		}
 	}
-	return
+
+	return identifier, results, nil
 }
 
-func parseResult(s string) (Result, error) {
-	// TODO: ignore header comments in parenthesis
+type parser struct {
+	r *bufio.Reader
+}
 
-	parts := strings.Fields(s)
-	if len(parts) == 0 || parts[0] == "none" {
-		return nil, nil
+func newParser(v string) *parser {
+	return &parser{r: bufio.NewReader(strings.NewReader(v))}
+}
+
+// getIdentifier parses the authserv-id of the authres header and checks the
+// version id when present. Ignore header comments in parenthesis.
+func (p *parser) getIndentifier() (identifier string, err error) {
+	for {
+		c, err := p.r.ReadByte()
+		if err == io.EOF {
+			return identifier, nil
+		} else if err != nil {
+			return identifier, err
+		}
+		if c == '(' {
+			p.r.UnreadByte()
+			p.readComment()
+			continue
+		}
+		if c == ';' {
+			break
+		}
+		identifier += string(c)
 	}
 
-	k, v, err := parseParam(parts[0])
+	fields := strings.Fields(identifier)
+	if len(fields) > 1 {
+		version := strings.TrimSpace(fields[1])
+		if version != "1" {
+			return "", errors.New("msgauth: unknown version")
+		}
+	} else if len(fields) == 0 {
+		return "", errors.New("msgauth: no identifier found")
+	}
+	return strings.TrimSpace(fields[0]), nil
+}
+
+// getResults parses the authentication part of the authres header and returns
+// a Result struct. Ignore header comments in parenthesis.
+func (p *parser) getResult() (result Result, err error) {
+	method, resultvalue, err := p.keyValue()
+	if method == "none" {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	method, value := k, ResultValue(strings.ToLower(v))
+	value := ResultValue(strings.ToLower(resultvalue))
 
 	params := make(map[string]string)
-	for i := 1; i < len(parts); i++ {
-		k, v, err := parseParam(parts[i])
-		if err != nil {
-			continue
+	var k, v string
+	for {
+		k, v, err = p.keyValue()
+		if k != "" {
+			params[k] = v
 		}
-
-		params[k] = v
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
 	}
 
 	newResult, ok := results[method]
@@ -293,10 +331,114 @@ func parseResult(s string) (Result, error) {
 	return r, nil
 }
 
-func parseParam(s string) (k string, v string, err error) {
-	kv := strings.SplitN(s, "=", 2)
-	if len(kv) != 2 {
-		return "", "", errors.New("msgauth: malformed authentication method and value")
+// keyValue parses a sequence of key=value parameters
+func (p *parser) keyValue() (k, v string, err error) {
+	k, err = p.readKey()
+	if err != nil {
+		return
 	}
-	return strings.ToLower(strings.TrimSpace(kv[0])), strings.TrimSpace(kv[1]), nil
+	v, err = p.readValue()
+	if err != nil {
+		return
+	}
+	return
+}
+
+// readKey reads a method, reason or ptype.property as defined in RFC 8601
+// Section 2.2. Ignore the method-version of the methodspec. Stop at EOF or the
+// equal sign.
+func (p *parser) readKey() (k string, err error) {
+	var c byte
+	for err != io.EOF {
+		c, err = p.r.ReadByte()
+		if err != nil {
+			break
+		}
+		switch c {
+		case ';':
+			err = io.EOF
+			break
+		case '=':
+			break
+		case '(':
+			p.r.UnreadByte()
+			_, err = p.readComment()
+			continue
+		case '/':
+			p.r.ReadBytes('=')
+			p.r.UnreadByte()
+		default:
+			if !unicode.IsSpace(rune(c)) {
+				k += string(c)
+			}
+		}
+		if c == '=' {
+			break
+		}
+	}
+	k = strings.TrimSpace(strings.ToLower(k))
+	return
+}
+
+// readValue reads a result or value as defined in RFC 8601 Section 2.2. Value
+// is defined as either a token or quoted string according to RFC 2045 Section
+// 5.1. Stop at EOF, white space or semi-colons.
+func (p *parser) readValue() (v string, err error) {
+	var c byte
+	for err != io.EOF {
+		c, err = p.r.ReadByte()
+		if err != nil {
+			break
+		}
+		switch c {
+		case ';':
+			err = io.EOF
+			break
+		case '(':
+			p.r.UnreadByte()
+			_, err = p.readComment()
+			continue
+		case '"':
+			v, err = p.r.ReadString(c)
+			v = strings.TrimSuffix(v, string(c))
+		default:
+			if !unicode.IsSpace(rune(c)) {
+				v += string(c)
+			}
+		}
+		if unicode.IsSpace(rune(c)) {
+			if v != "" {
+				break
+			}
+		}
+	}
+	v = strings.TrimSpace(v)
+	return
+}
+
+func (p *parser) readComment() (comment string, err error) {
+	count := 0
+	var c byte
+	for {
+		c, err = p.r.ReadByte()
+		if err != nil {
+			break
+		}
+		switch c {
+		case '\\':
+			c, _ = p.r.ReadByte()
+			comment += "\\" + string(c)
+		case '(':
+			count++
+		case ')':
+			count--
+		default:
+			comment += string(c)
+		}
+		if count == 0 {
+			break
+		}
+	}
+	comment = strings.TrimSpace(comment)
+	return
 }
