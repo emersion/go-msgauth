@@ -457,6 +457,8 @@ func stripWhitespace(s string) string {
 	}, s)
 }
 
+var sigRegex = regexp.MustCompile(`(b\s*=)[^;]+`)
+
 func removeSignature(s string) string {
-	return regexp.MustCompile(`(b\s*=)[^;]+`).ReplaceAllString(s, "$1")
+	return sigRegex.ReplaceAllString(s, "$1")
 }
