@@ -293,12 +293,13 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	}
 
 	// Parse algos
-	algos := strings.SplitN(stripWhitespace(params["a"]), "-", 2)
-	if len(algos) != 2 {
+	aNoWs := stripWhitespace(params["a"])
+	index := strings.Index(aNoWs, "-")
+	if index == -1 {
 		return verif, permFailError("malformed algorithm name")
 	}
-	keyAlgo := algos[0]
-	hashAlgo := algos[1]
+	keyAlgo := aNoWs[:index]
+	hashAlgo := aNoWs[index+1:]
 
 	// Check hash algo
 	if res.HashAlgos != nil {

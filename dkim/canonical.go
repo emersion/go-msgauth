@@ -113,16 +113,14 @@ func (c *simpleCanonicalizer) CanonicalizeBody(w io.Writer) io.WriteCloser {
 type relaxedCanonicalizer struct{}
 
 func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
-	kv := strings.SplitN(s, ":", 2)
-
-	k := strings.TrimSpace(strings.ToLower(kv[0]))
-
-	var v string
-	if len(kv) > 1 {
-		v = rxReduceWS.ReplaceAllString(kv[1], " ")
-		v = strings.TrimSpace(v)
+	index := strings.Index(s, ":")
+	if index == -1 {
+		return strings.TrimSpace(strings.ToLower(s)) + ":" + crlf
 	}
 
+	k := strings.TrimSpace(strings.ToLower(s[:index]))
+	v := rxReduceWS.ReplaceAllString(s[index+1:], " ")
+	v = strings.TrimSpace(v)
 	return k + ":" + v + crlf
 }
 
