@@ -67,26 +67,23 @@ func foldHeaderField(kv string) string {
 }
 
 func parseHeaderField(s string) (string, string) {
-	index := strings.Index(s, ":")
-	if index == -1 {
-		return strings.TrimSpace(s), ""
-	}
-	return strings.TrimSpace(s[:index]), strings.TrimSpace(s[index+1:])
+	key, value, _ := strings.Cut(s, ":")
+	return strings.TrimSpace(key), strings.TrimSpace(value)
 }
 
 func parseHeaderParams(s string) (map[string]string, error) {
 	pairs := strings.Split(s, ";")
 	params := make(map[string]string)
 	for _, s := range pairs {
-		index := strings.Index(s, "=")
-		if index == -1 {
+		key, value, ok := strings.Cut(s, "=")
+		if !ok {
 			if strings.TrimSpace(s) == "" {
 				continue
 			}
 			return params, errors.New("dkim: malformed header params")
 		}
 
-		params[strings.TrimSpace(s[:index])] = strings.TrimSpace(s[index+1:])
+		params[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 	return params, nil
 }

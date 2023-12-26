@@ -1,6 +1,6 @@
 module github.com/emersion/go-msgauth
 
-go 1.12
+go 1.18
 
 require (
 	github.com/emersion/go-message v0.17.0 // indirect
