@@ -110,13 +110,13 @@ func (c *simpleCanonicalizer) CanonicalizeBody(w io.Writer) io.WriteCloser {
 type relaxedCanonicalizer struct{}
 
 func (c *relaxedCanonicalizer) CanonicalizeHeader(s string) string {
-	index := strings.Index(s, ":")
-	if index == -1 {
+	k, v, ok := strings.Cut(s, ":")
+	if !ok {
 		return strings.TrimSpace(strings.ToLower(s)) + ":" + crlf
 	}
 
-	k := strings.TrimSpace(strings.ToLower(s[:index]))
-	v := strings.Join(strings.FieldsFunc(s[index+1:], func(r rune) bool {
+	k = strings.TrimSpace(strings.ToLower(k))
+	v = strings.Join(strings.FieldsFunc(v, func(r rune) bool {
 		return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 	}), " ")
 	return k + ":" + v + crlf
