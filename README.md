@@ -26,7 +26,7 @@ MIT
 
 [DKIM]: https://tools.ietf.org/html/rfc6376
 [Authentication-Results]: https://tools.ietf.org/html/rfc7601
-[DMARC]: http://tools.ietf.org/html/rfc7489
+[DMARC]: https://tools.ietf.org/html/rfc7489
 [`dkim`]: https://pkg.go.dev/github.com/emersion/go-msgauth/dkim
 [`authres`]: https://pkg.go.dev/github.com/emersion/go-msgauth/authres
 [`dmarc`]: https://pkg.go.dev/github.com/emersion/go-msgauth/dmarc
