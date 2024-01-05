@@ -84,15 +84,17 @@ func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult
 	// net.LookupTXT will concatenate strings contained in a single TXT record.
 	// In other words, net.LookupTXT returns one entry per TXT record, even if
 	// a record contains multiple strings.
-	for _, txt := range txts {
-		// RFC 7489 section 6.6.3 says records not starting with "v=" should be
-		// ignored
-		if strings.HasPrefix(txt, "v=") {
-			return parsePublicKey(txt)
-		}
+	//
+	// RFC 6376 section 3.6.2.2 says multiple TXT records lead to undefined
+	// behavior, so reject that.
+	switch len(txts) {
+	case 0:
+		return nil, permFailError("no valid key found")
+	case 1:
+		return parsePublicKey(txts[0])
+	default:
+		return nil, permFailError("multiple TXT records found for key")
 	}
-
-	return nil, permFailError("no valid key found")
 }
 
 func parsePublicKey(s string) (*queryResult, error) {
