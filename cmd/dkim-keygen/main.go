@@ -19,12 +19,14 @@ var (
 	keyType  string
 	nBits    int
 	filename string
+	readPriv bool
 )
 
 func init() {
 	flag.StringVar(&keyType, "t", "rsa", "key type (rsa, ed25519)")
 	flag.IntVar(&nBits, "b", 3072, "number of bits in the key (only for RSA)")
 	flag.StringVar(&filename, "f", "dkim.priv", "private key filename")
+	flag.BoolVar(&readPriv, "y", false, "read private key and print public key")
 	flag.Parse()
 }
 
@@ -33,8 +35,13 @@ type privateKey interface {
 }
 
 func main() {
-	privKey := genPrivKey()
-	writePrivKey(privKey)
+	var privKey privateKey
+	if readPriv {
+		privKey = readPrivKey()
+	} else {
+		privKey = genPrivKey()
+		writePrivKey(privKey)
+	}
 	printPubKey(privKey.Public())
 }
 
@@ -57,6 +64,28 @@ func genPrivKey() privateKey {
 		log.Fatalf("Failed to generate key: %v", err)
 	}
 	return privKey
+}
+
+func readPrivKey() privateKey {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatalf("Failed to read public key file: %v", err)
+	}
+
+	block, _ := pem.Decode(b)
+	if block == nil {
+		log.Fatalf("Failed to decode PEM block")
+	} else if block.Type != "PRIVATE KEY" {
+		log.Fatalf("Not a private key")
+	}
+
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		log.Fatalf("Failed to parse private key: %v", err)
+	}
+
+	log.Printf("Private key read from %q", filename)
+	return privKey.(privateKey)
 }
 
 func writePrivKey(privKey privateKey) {
