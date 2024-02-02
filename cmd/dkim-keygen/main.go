@@ -28,7 +28,17 @@ func init() {
 	flag.Parse()
 }
 
+type privateKey interface {
+	Public() crypto.PublicKey
+}
+
 func main() {
+	privKey := genPrivKey()
+	writePrivKey(privKey)
+	printPubKey(privKey.Public())
+}
+
+func genPrivKey() privateKey {
 	var (
 		privKey crypto.Signer
 		err     error
@@ -46,7 +56,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to generate key: %v", err)
 	}
+	return privKey
+}
 
+func writePrivKey(privKey privateKey) {
 	privBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
 	if err != nil {
 		log.Fatalf("Failed to marshal private key: %v", err)
@@ -69,9 +82,11 @@ func main() {
 		log.Fatalf("Failed to close key file: %v", err)
 	}
 	log.Printf("Private key written to %q", filename)
+}
 
+func printPubKey(pubKey crypto.PublicKey) {
 	var pubBytes []byte
-	switch pubKey := privKey.Public().(type) {
+	switch pubKey := pubKey.(type) {
 	case *rsa.PublicKey:
 		// RFC 6376 is inconsistent about whether RSA public keys should
 		// be formatted as RSAPublicKey or SubjectPublicKeyInfo.
@@ -79,6 +94,7 @@ func main() {
 		// proposes allowing both.  We use SubjectPublicKeyInfo for
 		// consistency with other implementations including opendkim,
 		// Gmail, and Fastmail.
+		var err error
 		pubBytes, err = x509.MarshalPKIXPublicKey(pubKey)
 		if err != nil {
 			log.Fatalf("Failed to marshal public key: %v", err)
