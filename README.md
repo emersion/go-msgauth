@@ -21,7 +21,6 @@ A few tools are included in go-msgauth:
 - `dmarc-lookup`: lookup the DMARC policy of a domain
 
 ## License
-
 MIT
 
 [DKIM]: https://tools.ietf.org/html/rfc6376
