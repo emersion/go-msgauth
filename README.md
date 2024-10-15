@@ -1,7 +1,6 @@
 # go-msgauth
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/emersion/go-msgauth.svg)](https://pkg.go.dev/github.com/emersion/go-msgauth)
-[![builds.sr.ht status](https://builds.sr.ht/~emersion/go-msgauth/commits/master.svg?)](https://builds.sr.ht/~emersion/go-msgauth/commits/master)
 
 A Go library and tools to authenticate e-mails.
 
