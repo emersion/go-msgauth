@@ -60,13 +60,31 @@ var signHeaderKeys = []string{
 
 const maxVerifications = 5
 
+const usage = `usage: dkim-milter [options....]
+
+Mail filter to verify and sign messages with DKIM.
+
+By default, message signatures are verified and an Authentication-Results
+header field is inserted.
+
+When -d, -k and -s are provided, messages matching the domain(s) are signed.
+dkim-keygen can be used to generate a private key.
+
+Options:
+`
+
 func init() {
-	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed (matched using path.Match)")
+	flag.Var(&signDomains, "d", "Domain(s) whose mail should be signed (glob patterns are allowed)")
 	flag.StringVar(&identity, "i", "", "Server identity (defaults to hostname)")
 	flag.StringVar(&listenURI, "l", "unix:///tmp/dkim-milter.sock", "Listen URI")
 	flag.StringVar(&privateKeyPath, "k", "", "Private key (PEM-formatted)")
 	flag.StringVar(&selector, "s", "", "Selector")
 	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
+
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), usage)
+		flag.PrintDefaults()
+	}
 }
 
 type stringSliceFlag []string
@@ -365,7 +383,7 @@ func main() {
 	}
 
 	if (len(signDomains) > 0 || privateKeyPath != "" || selector != "") && !(len(signDomains) > 0 && privateKeyPath != "" && selector != "") {
-		log.Fatal("Domain(s) (-d) and private key (-k) must be both specified")
+		log.Fatal("Domain(s) (-d), private key (-k) and selector (-s) must all be specified")
 	}
 
 	for i, pattern := range signDomains {
