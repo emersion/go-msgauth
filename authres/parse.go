@@ -2,6 +2,8 @@ package authres
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -186,6 +188,42 @@ func (r *DMARCResult) format() (ResultValue, map[string]string) {
 	}
 }
 
+type ARCResult struct {
+	Value      ResultValue
+	RemoteIP   string
+	OldestPass int
+}
+
+func (r *ARCResult) parse(value ResultValue, params map[string]string) error {
+	var oldestPass int
+	if s, ok := params["header.oldest-pass"]; ok {
+		var err error
+		oldestPass, err = strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("invalid header.oldest-pass param: %v", err)
+		} else if oldestPass <= 0 {
+			return fmt.Errorf("invalid header.oldest-pass param: must be >= 1")
+		}
+	}
+
+	r.Value = value
+	r.RemoteIP = params["smtp.remote-ip"]
+	r.OldestPass = oldestPass
+	return nil
+}
+
+func (r *ARCResult) format() (ResultValue, map[string]string) {
+	var oldestPass string
+	if r.OldestPass > 0 {
+		oldestPass = strconv.Itoa(r.OldestPass)
+	}
+
+	return r.Value, map[string]string{
+		"smtp.remote-ip":     r.RemoteIP,
+		"header.oldest-pass": oldestPass,
+	}
+}
+
 type GenericResult struct {
 	Method string
 	Value  ResultValue
@@ -205,6 +243,9 @@ func (r *GenericResult) format() (ResultValue, map[string]string) {
 type newResultFunc func() Result
 
 var results = map[string]newResultFunc{
+	"arc": func() Result {
+		return new(ARCResult)
+	},
 	"auth": func() Result {
 		return new(AuthResult)
 	},
