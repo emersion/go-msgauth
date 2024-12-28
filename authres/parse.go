@@ -24,7 +24,7 @@ const (
 
 // Result is an authentication result.
 type Result interface {
-	parse(value ResultValue, params map[string]string)
+	parse(value ResultValue, params map[string]string) error
 	format() (value ResultValue, params map[string]string)
 }
 
@@ -34,10 +34,11 @@ type AuthResult struct {
 	Auth   string
 }
 
-func (r *AuthResult) parse(value ResultValue, params map[string]string) {
+func (r *AuthResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.Auth = params["smtp.auth"]
+	return nil
 }
 
 func (r *AuthResult) format() (ResultValue, map[string]string) {
@@ -51,11 +52,12 @@ type DKIMResult struct {
 	Identifier string
 }
 
-func (r *DKIMResult) parse(value ResultValue, params map[string]string) {
+func (r *DKIMResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.Domain = params["header.d"]
 	r.Identifier = params["header.i"]
+	return nil
 }
 
 func (r *DKIMResult) format() (ResultValue, map[string]string) {
@@ -74,12 +76,13 @@ type DomainKeysResult struct {
 	Sender string
 }
 
-func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) {
+func (r *DomainKeysResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.Domain = params["header.d"]
 	r.From = params["header.from"]
 	r.Sender = params["header.sender"]
+	return nil
 }
 
 func (r *DomainKeysResult) format() (ResultValue, map[string]string) {
@@ -97,10 +100,11 @@ type IPRevResult struct {
 	IP     string
 }
 
-func (r *IPRevResult) parse(value ResultValue, params map[string]string) {
+func (r *IPRevResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.IP = params["policy.iprev"]
+	return nil
 }
 
 func (r *IPRevResult) format() (ResultValue, map[string]string) {
@@ -117,7 +121,7 @@ type SenderIDResult struct {
 	HeaderValue string
 }
 
-func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
+func (r *SenderIDResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 
@@ -128,6 +132,8 @@ func (r *SenderIDResult) parse(value ResultValue, params map[string]string) {
 			break
 		}
 	}
+
+	return nil
 }
 
 func (r *SenderIDResult) format() (value ResultValue, params map[string]string) {
@@ -144,11 +150,12 @@ type SPFResult struct {
 	Helo   string
 }
 
-func (r *SPFResult) parse(value ResultValue, params map[string]string) {
+func (r *SPFResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.From = params["smtp.mailfrom"]
 	r.Helo = params["smtp.helo"]
+	return nil
 }
 
 func (r *SPFResult) format() (ResultValue, map[string]string) {
@@ -165,10 +172,11 @@ type DMARCResult struct {
 	From   string
 }
 
-func (r *DMARCResult) parse(value ResultValue, params map[string]string) {
+func (r *DMARCResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Reason = params["reason"]
 	r.From = params["header.from"]
+	return nil
 }
 
 func (r *DMARCResult) format() (ResultValue, map[string]string) {
@@ -184,9 +192,10 @@ type GenericResult struct {
 	Params map[string]string
 }
 
-func (r *GenericResult) parse(value ResultValue, params map[string]string) {
+func (r *GenericResult) parse(value ResultValue, params map[string]string) error {
 	r.Value = value
 	r.Params = params
+	return nil
 }
 
 func (r *GenericResult) format() (ResultValue, map[string]string) {
@@ -289,8 +298,8 @@ func parseResult(s string) (Result, error) {
 		}
 	}
 
-	r.parse(value, params)
-	return r, nil
+	err = r.parse(value, params)
+	return r, err
 }
 
 func parseParam(s string) (k string, v string, err error) {
