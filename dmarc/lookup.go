@@ -51,13 +51,54 @@ func LookupWithOptions(domain string, options *LookupOptions) (*Record, error) {
 		}
 		return nil, errors.New("dmarc: failed to lookup TXT record: " + err.Error())
 	}
+
+	// net.LookupTXT will concatenate strings contained in a single TXT record.
+	// In other words, net.LookupTXT returns one entry per TXT record, even if
+	// a record contains multiple strings.
 	if len(txts) == 0 {
 		return nil, ErrNoPolicy
 	}
 
-	// Long keys are split in multiple parts
-	txt := strings.Join(txts, "")
-	return Parse(txt)
+	// RFC 6376:
+	// Records that do not start with a "v=" tag that identifies the
+	// current version of DMARC are discarded.
+	dmarcRecords := make([]string, 0, len(txts))
+	for _, record := range txts {
+		if IsDmarcRecord(record) {
+			dmarcRecords = append(dmarcRecords, record)
+		}
+	}
+
+	if len(dmarcRecords) != 1 {
+		return nil, ErrNoPolicy
+	}
+
+	return Parse(dmarcRecords[0])
+}
+
+func IsDmarcRecord(txt string) bool {
+	// RFC 6376:
+	// DMARC records follow the extensible "tag-value" syntax for DNS-based
+	// key records defined in DKIM.
+	firstTagSpec, _, _ := strings.Cut(txt, ";")
+
+	tagName, tagValue, found := strings.Cut(firstTagSpec, "=")
+	if !found {
+		return false
+	}
+
+	// RFC 6376:
+	// Note that WSP is allowed anywhere around tags.  In particular, any
+	// WSP after the "=" and any WSP before the terminating ";" is not part
+	// of the value; however, WSP inside the value is significant.
+	if strings.TrimSpace(tagName) != "v" {
+		return false
+	}
+	if strings.TrimSpace(tagValue) != "DMARC1" {
+		return false
+	}
+
+	return true
 }
 
 func Parse(txt string) (*Record, error) {
