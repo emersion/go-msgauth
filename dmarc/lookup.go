@@ -62,53 +62,27 @@ func LookupWithOptions(domain string, options *LookupOptions) (*Record, error) {
 	// RFC 6376:
 	// Records that do not start with a "v=" tag that identifies the
 	// current version of DMARC are discarded.
-	dmarcRecords := make([]string, 0, len(txts))
 	for _, record := range txts {
-		if IsDmarcRecord(record) {
-			dmarcRecords = append(dmarcRecords, record)
+		rec, err := Parse(record)
+		if err != nil {
+			if err.Error() != "dmarc: not a DMARC1 record" {
+				return nil, err
+			}
+		} else {
+			return rec, nil
 		}
 	}
 
-	if len(dmarcRecords) != 1 {
-		return nil, ErrNoPolicy
-	}
-
-	return Parse(dmarcRecords[0])
-}
-
-func IsDmarcRecord(txt string) bool {
-	// RFC 6376:
-	// DMARC records follow the extensible "tag-value" syntax for DNS-based
-	// key records defined in DKIM.
-	firstTagSpec, _, _ := strings.Cut(txt, ";")
-
-	tagName, tagValue, found := strings.Cut(firstTagSpec, "=")
-	if !found {
-		return false
-	}
-
-	// RFC 6376:
-	// Note that WSP is allowed anywhere around tags.  In particular, any
-	// WSP after the "=" and any WSP before the terminating ";" is not part
-	// of the value; however, WSP inside the value is significant.
-	if strings.TrimSpace(tagName) != "v" {
-		return false
-	}
-	if strings.TrimSpace(tagValue) != "DMARC1" {
-		return false
-	}
-
-	return true
+	return nil, ErrNoPolicy
 }
 
 func Parse(txt string) (*Record, error) {
-	params, err := parseParams(txt)
-	if err != nil {
-		return nil, err
-	}
+	var err error = nil
+	params := parseParams(txt)
 
-	if params["v"] != "DMARC1" {
-		return nil, errors.New("dmarc: unsupported DMARC version")
+	v, ok := params["v"]
+	if !ok || v != "DMARC1" {
+		return nil, errors.New("dmarc: not a DMARC1 record")
 	}
 
 	rec := new(Record)
@@ -198,21 +172,24 @@ func Parse(txt string) (*Record, error) {
 	return rec, nil
 }
 
-func parseParams(s string) (map[string]string, error) {
-	pairs := strings.Split(s, ";")
+func parseParams(s string) map[string]string {
+	tagSpecs := strings.Split(s, ";")
 	params := make(map[string]string)
-	for _, s := range pairs {
-		kv := strings.SplitN(s, "=", 2)
-		if len(kv) != 2 {
-			if strings.TrimSpace(s) == "" {
-				continue
-			}
-			return params, errors.New("dmarc: malformed params")
-		}
 
-		params[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+	for _, tagSpec := range tagSpecs {
+		tagName, tagValue, ok := strings.Cut(tagSpec, "=")
+		// RFC 6376:
+		// Syntax errors in the remainder of the record SHOULD be discarded in
+		// favor of default values (if any) or ignored outright.
+		if ok {
+			// RFC 6376:
+			// Note that WSP is allowed anywhere around tags. In particular, any
+			// WSP after the "=" and any WSP before the terminating ";" is not
+			// part of the value; however, WSP inside the value is significant.
+			params[strings.TrimSpace(tagName)] = strings.TrimSpace(tagValue)
+		}
 	}
-	return params, nil
+	return params
 }
 
 func parsePolicy(s, param string) (Policy, error) {
