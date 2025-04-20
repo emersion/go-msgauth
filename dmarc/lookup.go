@@ -24,6 +24,8 @@ func IsTempFail(err error) bool {
 
 var ErrNoPolicy = errors.New("dmarc: no policy found for domain")
 
+var errUnsupportedVersion = errors.New("dmarc: unsupported DMARC version")
+
 // LookupOptions allows to customize the default signature verification behavior
 // LookupTXT returns the DNS TXT records for the given domain name. If nil, net.LookupTXT is used
 type LookupOptions struct {
@@ -51,13 +53,19 @@ func LookupWithOptions(domain string, options *LookupOptions) (*Record, error) {
 		}
 		return nil, errors.New("dmarc: failed to lookup TXT record: " + err.Error())
 	}
-	if len(txts) == 0 {
-		return nil, ErrNoPolicy
+
+	for _, txt := range txts {
+		if !strings.HasPrefix(txt, "v=") {
+			continue
+		}
+		record, err := Parse(txt)
+		if err == errUnsupportedVersion {
+			continue
+		}
+		return record, err
 	}
 
-	// Long keys are split in multiple parts
-	txt := strings.Join(txts, "")
-	return Parse(txt)
+	return nil, ErrNoPolicy
 }
 
 func Parse(txt string) (*Record, error) {
@@ -67,7 +75,7 @@ func Parse(txt string) (*Record, error) {
 	}
 
 	if params["v"] != "DMARC1" {
-		return nil, errors.New("dmarc: unsupported DMARC version")
+		return nil, errUnsupportedVersion
 	}
 
 	rec := new(Record)
