@@ -272,6 +272,11 @@ var results = map[string]newResultFunc{
 // Parse parses the provided Authentication-Results header field. It returns the
 // authentication service identifier and authentication results.
 func Parse(v string) (identifier string, results []Result, err error) {
+	v, err = removeComments(v)
+	if err != nil {
+		return "", nil, err
+	}
+
 	parts := strings.Split(v, ";")
 
 	identifier = strings.TrimSpace(parts[0])
@@ -302,9 +307,24 @@ func Parse(v string) (identifier string, results []Result, err error) {
 	return
 }
 
-func parseResult(s string) (Result, error) {
-	// TODO: ignore header comments in parenthesis
+// removeComments removes header comments in parenthesis from v and returns the
+// resulting string.
+func removeComments(v string) (string, error) {
+	for {
+		lparen := strings.Index(v, "(")
+		if lparen == -1 {
+			return v, nil
+		}
+		rest := v[lparen:]
+		rparen := strings.Index(rest, ")")
+		if rparen == -1 {
+			return v, errors.New("msgauth: mismatched comment parenthesis")
+		}
+		v = v[:lparen] + rest[rparen+1:]
+	}
+}
 
+func parseResult(s string) (Result, error) {
 	parts := strings.Fields(s)
 	if len(parts) == 0 || parts[0] == "none" {
 		return nil, nil

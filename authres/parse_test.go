@@ -32,6 +32,14 @@ var parseTests = []msgauthTest{
 			&AuthResult{Value: ResultPass, Auth: "sender@example.com"},
 		},
 	},
+	{
+		value: `mail.club1.fr;
+        dkim=pass (2048-bit key; unprotected) header.d=free.fr header.i=@free.fr header.a=rsa-sha256 header.s=smtp-20201208 header.b=OnHOkkuR`,
+		identifier: "mail.club1.fr",
+		results: []Result{
+			&DKIMResult{Value: ResultPass, Domain: "free.fr", Identifier: "@free.fr"},
+		},
+	},
 }
 
 func TestParse(t *testing.T) {
@@ -46,7 +54,7 @@ func TestParse(t *testing.T) {
 		} else {
 			for i := 0; i < len(results); i++ {
 				if !reflect.DeepEqual(test.results[i], results[i]) {
-					t.Errorf("Expected result to be \n%v\n but got \n%v", test.results[i], results[i])
+					t.Errorf("Expected result to be \n%#v\n but got \n%#v", test.results[i], results[i])
 				}
 			}
 		}
