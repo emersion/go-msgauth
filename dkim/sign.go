@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -197,10 +198,10 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			"bh": base64.StdEncoding.EncodeToString(bodyHashed),
 			"c":  string(headerCan) + "/" + string(bodyCan),
 			"d":  options.Domain,
-			//"l": "", // TODO
+			// "l": "", // TODO
 			"s": options.Selector,
 			"t": formatTime(now()),
-			//"z": "", // TODO
+			// "z": "", // TODO
 		}
 
 		var headerKeys []string
@@ -330,6 +331,35 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	}
 	_, err = io.Copy(w, &b)
 	return err
+}
+
+// GenSignature reads message from r and return generated raw signature (without `DKIM-Signature:` header key).
+func GenSignature(r io.Reader, options *SignOptions) (signature string, err error) {
+	s, err := NewSigner(options)
+	if err != nil {
+		return
+	}
+	defer s.Close()
+
+	if _, err = io.Copy(s, r); err != nil {
+		return
+	}
+
+	if err = s.Close(); err != nil {
+		return
+	}
+
+	if s.sigParams == nil {
+		err = errors.New("dkim: Signer.Signature must only be called after a succesful Signer.Close")
+
+		return
+	}
+
+	signature = formatHeaderParams(headerFieldName, s.sigParams)
+	_, signature, _ = strings.Cut(signature, ":")
+	signature = strings.TrimSpace(signature)
+
+	return
 }
 
 func formatSignature(params map[string]string) string {
