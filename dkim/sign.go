@@ -333,7 +333,7 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	return err
 }
 
-// GenSignature reads message from r and return generated raw signature (without `DKIM-Signature:` header key).
+// GenSignature reads message from r and return signature (without `DKIM-Signature:` header key).
 func GenSignature(r io.Reader, options *SignOptions) (signature string, err error) {
 	s, err := NewSigner(options)
 	if err != nil {
