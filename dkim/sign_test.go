@@ -8,29 +8,33 @@ import (
 	"testing"
 )
 
-const mailHeaderString = "From: Joe SixPack <joe@football.example.com>\r\n" +
-	"To: Suzie Q <suzie@shopping.example.net>\r\n" +
-	"Subject: Is dinner ready?\r\n" +
-	"Date: Fri, 11 Jul 2003 21:00:37 -0700 (PDT)\r\n" +
-	"Message-ID: <20030712040037.46341.5F8J@football.example.com>\r\n"
+const (
+	mailHeaderString = "From: Joe SixPack <joe@football.example.com>\r\n" +
+		"To: Suzie Q <suzie@shopping.example.net>\r\n" +
+		"Subject: Is dinner ready?\r\n" +
+		"Date: Fri, 11 Jul 2003 21:00:37 -0700 (PDT)\r\n" +
+		"Message-ID: <20030712040037.46341.5F8J@football.example.com>\r\n"
 
-const mailBodyString = "Hi.\r\n" +
-	"\r\n" +
-	"We lost the game. Are you hungry yet?\r\n" +
-	"\r\n" +
-	"Joe."
+	mailBodyString = "Hi.\r\n" +
+		"\r\n" +
+		"We lost the game. Are you hungry yet?\r\n" +
+		"\r\n" +
+		"Joe."
 
-const mailString = mailHeaderString + "\r\n" + mailBodyString
+	mailString = mailHeaderString + "\r\n" + mailBodyString
 
-const signedMailString = "DKIM-Signature: a=rsa-sha256; bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=;" + "\r\n" +
-	" " + "c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID;" + "\r\n" +
-	" " + "s=brisbane; t=424242; v=1;" + "\r\n" +
-	" " + "b=MobyyDTeHhMhNJCEI6ATNK63ZQ7deSXK9umyzAvYwFqE6oGGvlQBQwqr1aC11hWpktjMLP1/" + "\r\n" +
-	" " + "m0PBi9v7cRLKMXXBIv2O0B1mIWdZPqd9jveRJqKzCb7SpqH2u5kK6i2vZI639ENTQzRQdxSAGXc" + "\r\n" +
-	" " + "PcPYjrgkqj7xklnrNBs0aIUA=" + "\r\n" +
-	mailHeaderString +
-	"\r\n" +
-	mailBodyString
+	signed = "a=rsa-sha256; bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=;" + "\r\n" +
+		" " + "c=simple/simple; d=example.org; h=From:To:Subject:Date:Message-ID;" + "\r\n" +
+		" " + "s=brisbane; t=424242; v=1;" + "\r\n" +
+		" " + "b=MobyyDTeHhMhNJCEI6ATNK63ZQ7deSXK9umyzAvYwFqE6oGGvlQBQwqr1aC11hWpktjMLP1/" + "\r\n" +
+		" " + "m0PBi9v7cRLKMXXBIv2O0B1mIWdZPqd9jveRJqKzCb7SpqH2u5kK6i2vZI639ENTQzRQdxSAGXc" + "\r\n" +
+		" " + "PcPYjrgkqj7xklnrNBs0aIUA="
+
+	signedMailString = "DKIM-Signature: " + signed + "\r\n" +
+		mailHeaderString +
+		"\r\n" +
+		mailBodyString
+)
 
 func init() {
 	randReader = rand.New(rand.NewSource(42))
@@ -50,6 +54,24 @@ func TestSign(t *testing.T) {
 	}
 
 	if s := b.String(); s != signedMailString {
+		t.Errorf("Expected signed message to be \n%v\n but got \n%v", signedMailString, s)
+	}
+}
+
+func TestGenSignature(t *testing.T) {
+	r := strings.NewReader(mailString)
+	options := &SignOptions{
+		Domain:   "example.org",
+		Selector: "brisbane",
+		Signer:   testPrivateKey,
+	}
+
+	s, err := GenSignature(r, options)
+	if err != nil {
+		t.Fatal("Expected no error while signing mail, got:", err)
+	}
+
+	if s != signed {
 		t.Errorf("Expected signed message to be \n%v\n but got \n%v", signedMailString, s)
 	}
 }
