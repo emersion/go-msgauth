@@ -294,3 +294,29 @@ func TestVerify_tooManySignatures(t *testing.T) {
 		t.Fatalf("Expected %v verifications, got %v", options.MaxVerifications, len(verifs))
 	}
 }
+
+const withCopiedHeadersMailString = `DKIM-Signature: a=rsa-sha256; bh=cSd2xJLZ1w6BVX02p/7+LEUN7cKokyc8EcnSGvVt6/U=;
+ c=simple/simple; d=example.org; h=Date:From:Subject; s=brisbane; t=424242;
+ v=1; z=From:Steve=20b=20=3C
+ |Subject:Is=20dinner=20;
+ b=deBHDj9iug224Bpdsz05taGJ4YEz2ciqcVeLe+5NKDSk0J6gqZBLm/T0z1WXB0+LtsjL9KfJ
+ +QXpDSNQe6JvvZSv2e40QNUbeuF5AqT8wgyxAmJIDD4UU08XChBZKKqc2nmxkQG0zpHBCQ+ljwz
+ q3la34vyXvPXqSLFKQDdmCV4=
+Date: Fri, 11 Jul 2003 21:00:37 -0700 (PDT)
+From: Steve b <steve@example.com>
+Subject: Is dinner ready?
+
+Somebody once told me.
+`
+
+func TestVerify_withCopiedHeaders(t *testing.T) {
+	r := strings.NewReader(withCopiedHeadersMailString)
+	verifications, err := Verify(r)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	}
+	v := verifications[0]
+	if v.Err != nil {
+		t.Errorf("Expected no error in signature, got: %v", v.Err)
+	}
+}

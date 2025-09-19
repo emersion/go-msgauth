@@ -455,7 +455,9 @@ func stripWhitespace(s string) string {
 	}, s)
 }
 
-var sigRegex = regexp.MustCompile(`(b\s*=)[^;]+`)
+// Removing the content of the b= field. Not 100% correct as the b= could
+// be the first field in the signature and so not preceded by a semicolon.
+var sigRegex = regexp.MustCompile(`(;\s*b\s*=)[^;]+`)
 
 func removeSignature(s string) string {
 	return sigRegex.ReplaceAllString(s, "$1")
