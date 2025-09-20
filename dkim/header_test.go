@@ -157,3 +157,12 @@ func TestFoldHeaderField(t *testing.T) {
 		t.Errorf("Extra black line added in header:\n Actual:\n ---Start--- %v ---End---\nExpected: \n ---Start--- %v ---End---\n", folded, expected)
 	}
 }
+
+func TestQpHeaderValue(t *testing.T) {
+	header := "Suzie Q;| <suzie@shopping.example.net>"
+	want := "Suzie=20Q=3B=7C=20<suzie@shopping.example.net>"
+	got := qpHeaderValue([]byte(header))
+	if got != want {
+		t.Errorf("got = %q, want %q", got, want)
+	}
+}

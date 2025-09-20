@@ -170,3 +170,51 @@ func (p *headerPicker) Pick(key string) string {
 
 	return ""
 }
+
+const upperhex = "0123456789ABCDEF"
+
+// qpHeaderValue encodes strings as described in RFC 6376 #2.11,
+// additionally escaping "|"
+func qpHeaderValue(p []byte) string {
+	var w bytes.Buffer
+	var n int
+	for i, b := range p {
+		switch {
+		case b >= '!' && b <= ':': // %x21-3A
+			continue
+		case b == '<': // %x3c
+			continue
+		case b >= '>' && b <= '{': // %x3e - %x7b
+			continue
+		case b == '}': // %x7d
+			continue
+		case b == '~': // %x7e
+			continue
+		}
+		if i > n {
+			_, _ = w.Write(p[n:i])
+			n = i
+		}
+		w.WriteByte('=')
+		w.WriteByte(upperhex[b>>4])
+		w.WriteByte(upperhex[b&0x0f])
+		n++
+	}
+	w.Write(p[n:])
+	return w.String()
+}
+
+func copyHeaders(names []string, h header) []string {
+	want := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		want[strings.ToLower(name)] = struct{}{}
+	}
+	var copied []string
+	for _, kv := range h {
+		k, v := parseHeaderField(kv)
+		if _, ok := want[strings.ToLower(k)]; ok {
+			copied = append(copied, k+":"+qpHeaderValue([]byte(v)))
+		}
+	}
+	return copied
+}

@@ -68,6 +68,9 @@ type SignOptions struct {
 	//
 	// If nil, it is implicitly defined as QueryMethodDNSTXT.
 	QueryMethods []QueryMethod
+
+	// A list of header fields to copy into the z= field of the signature.
+	CopyHeaderKeys []string
 }
 
 // Signer generates a DKIM signature.
@@ -200,7 +203,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			//"l": "", // TODO
 			"s": options.Selector,
 			"t": formatTime(now()),
-			//"z": "", // TODO
+			//"z": "",
 		}
 
 		var headerKeys []string
@@ -228,6 +231,11 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 
 		if !options.Expiration.IsZero() {
 			params["x"] = formatTime(options.Expiration)
+		}
+
+		if options.CopyHeaderKeys != nil {
+			copiedHeaders := copyHeaders(options.CopyHeaderKeys, h)
+			params["z"] = strings.Join(copiedHeaders, "\r\n |")
 		}
 
 		// Hash and sign headers
