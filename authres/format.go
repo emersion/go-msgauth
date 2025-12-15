@@ -41,6 +41,8 @@ func resultMethod(r Result) string {
 		return "spf"
 	case *DMARCResult:
 		return "dmarc"
+	case *BIMIResult:
+		return "bimi"
 	case *GenericResult:
 		return r.Method
 	default:
