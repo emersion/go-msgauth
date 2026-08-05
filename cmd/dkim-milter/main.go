@@ -32,6 +32,7 @@ var (
 	privateKeyPath string
 	selector       string
 	verbose        bool
+	verify         bool
 )
 
 var privateKey crypto.Signer
@@ -80,6 +81,7 @@ func init() {
 	flag.StringVar(&privateKeyPath, "k", "", "Private key (PEM-formatted)")
 	flag.StringVar(&selector, "s", "", "Selector")
 	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
+	flag.BoolVar(&verify, "a", true, "Verify signatures")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), usage)
@@ -194,10 +196,12 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 	}
 
 	// Delete any existing Authentication-Results header field with our identity
-	fields := h["Authentication-Results"]
-	for i, field := range fields {
-		if shouldDeleteAuthRes(field) {
-			s.authResDelete = append(s.authResDelete, i)
+	if verify {
+		fields := h["Authentication-Results"]
+		for i, field := range fields {
+			if shouldDeleteAuthRes(field) {
+				s.authResDelete = append(s.authResDelete, i)
+			}
 		}
 	}
 
@@ -227,10 +231,12 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 
 	// TODO: limit max. number of signatures
 	go func() {
-		options := dkim.VerifyOptions{MaxVerifications: maxVerifications}
-
 		var err error
-		s.verifs, err = dkim.VerifyWithOptions(pr, &options)
+
+		if verify {
+			options := dkim.VerifyOptions{MaxVerifications: maxVerifications}
+			s.verifs, err = dkim.VerifyWithOptions(pr, &options)
+		}
 		io.Copy(ioutil.Discard, pr)
 		pr.Close()
 		done <- err
@@ -294,6 +300,10 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 		if err := m.InsertHeader(0, k, v); err != nil {
 			return nil, err
 		}
+	}
+
+	if !verify {
+		return milter.RespAccept, nil
 	}
 
 	results := make([]authres.Result, 0, len(s.verifs))
