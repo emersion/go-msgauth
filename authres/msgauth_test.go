@@ -13,7 +13,7 @@ var msgauthTests = []msgauthTest{
 		results:    nil,
 	},
 	{
-		value:      "example.com; dkim=none ",
+		value:      "example.com; dkim=none",
 		identifier: "example.com",
 		results: []Result{
 			&DKIMResult{Value: ResultNone},

@@ -19,7 +19,10 @@ func Format(identity string, results []Result) string {
 		method := resultMethod(r)
 		value, params := r.format()
 
-		s += "; " + method + "=" + string(value) + " " + formatParams(params)
+		s += "; " + method + "=" + string(value)
+		if formattedParams := formatParams(params); formattedParams != "" {
+			s += " " + formattedParams
+		}
 	}
 
 	return s
@@ -41,6 +44,8 @@ func resultMethod(r Result) string {
 		return "spf"
 	case *DMARCResult:
 		return "dmarc"
+	case *ARCResult:
+		return "arc"
 	case *GenericResult:
 		return r.Method
 	default:
@@ -109,7 +114,8 @@ func formatValue(s string) string {
 	}
 
 	if shouldQuote {
-		return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
+		escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s)
+		return `"` + escaped + `"`
 	}
 	return s
 }

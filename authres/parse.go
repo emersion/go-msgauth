@@ -14,14 +14,14 @@ type ResultValue string
 
 const (
 	ResultNone      ResultValue = "none"
-	ResultPass                  = "pass"
-	ResultFail                  = "fail"
-	ResultPolicy                = "policy"
-	ResultNeutral               = "neutral"
-	ResultTempError             = "temperror"
-	ResultPermError             = "permerror"
-	ResultHardFail              = "hardfail"
-	ResultSoftFail              = "softfail"
+	ResultPass      ResultValue = "pass"
+	ResultFail      ResultValue = "fail"
+	ResultPolicy    ResultValue = "policy"
+	ResultNeutral   ResultValue = "neutral"
+	ResultTempError ResultValue = "temperror"
+	ResultPermError ResultValue = "permerror"
+	ResultHardFail  ResultValue = "hardfail"
+	ResultSoftFail  ResultValue = "softfail"
 )
 
 // Result is an authentication result.
@@ -44,7 +44,10 @@ func (r *AuthResult) parse(value ResultValue, params map[string]string) error {
 }
 
 func (r *AuthResult) format() (ResultValue, map[string]string) {
-	return r.Value, map[string]string{"smtp.auth": r.Auth}
+	return r.Value, map[string]string{
+		"reason":    r.Reason,
+		"smtp.auth": r.Auth,
+	}
 }
 
 type DKIMResult struct {
@@ -201,8 +204,8 @@ func (r *ARCResult) parse(value ResultValue, params map[string]string) error {
 		oldestPass, err = strconv.Atoi(s)
 		if err != nil {
 			return fmt.Errorf("invalid header.oldest-pass param: %v", err)
-		} else if oldestPass <= 0 {
-			return fmt.Errorf("invalid header.oldest-pass param: must be >= 1")
+		} else if oldestPass < 0 {
+			return fmt.Errorf("invalid header.oldest-pass param: must be >= 0")
 		}
 	}
 
@@ -213,8 +216,8 @@ func (r *ARCResult) parse(value ResultValue, params map[string]string) error {
 }
 
 func (r *ARCResult) format() (ResultValue, map[string]string) {
-	var oldestPass string
-	if r.OldestPass > 0 {
+	oldestPass := ""
+	if r.OldestPass >= 0 {
 		oldestPass = strconv.Itoa(r.OldestPass)
 	}
 
@@ -272,17 +275,26 @@ var results = map[string]newResultFunc{
 // Parse parses the provided Authentication-Results header field. It returns the
 // authentication service identifier and authentication results.
 func Parse(v string) (identifier string, results []Result, err error) {
-	parts := strings.Split(v, ";")
+	parts, err := splitAuthres(v)
+	if err != nil {
+		return "", nil, err
+	}
 
-	identifier = strings.TrimSpace(parts[0])
-	i := strings.IndexFunc(identifier, unicode.IsSpace)
-	if i > 0 {
-		version := strings.TrimSpace(identifier[i:])
-		if version != "1" {
-			return "", nil, errors.New("msgauth: unsupported version")
+	identifierFields, err := authresFields(parts[0])
+	if err != nil {
+		return "", nil, err
+	}
+	if len(identifierFields) > 0 {
+		identifier, err = parseValue(identifierFields[0])
+		if err != nil {
+			return "", nil, fmt.Errorf("msgauth: malformed authentication service identifier: %w", err)
 		}
-
-		identifier = identifier[:i]
+	}
+	if len(identifierFields) > 2 {
+		return identifier, nil, errors.New("msgauth: malformed authentication service identifier")
+	}
+	if len(identifierFields) == 2 && identifierFields[1] != "1" {
+		return identifier, nil, errors.New("msgauth: unsupported version")
 	}
 
 	for i := 1; i < len(parts); i++ {
@@ -303,9 +315,10 @@ func Parse(v string) (identifier string, results []Result, err error) {
 }
 
 func parseResult(s string) (Result, error) {
-	// TODO: ignore header comments in parenthesis
-
-	parts := strings.Fields(s)
+	parts, err := authresFields(s)
+	if err != nil {
+		return nil, err
+	}
 	if len(parts) == 0 || parts[0] == "none" {
 		return nil, nil
 	}
@@ -320,7 +333,7 @@ func parseResult(s string) (Result, error) {
 	for i := 1; i < len(parts); i++ {
 		k, v, err := parseParam(parts[i])
 		if err != nil {
-			continue
+			return nil, err
 		}
 
 		params[k] = v
@@ -348,5 +361,164 @@ func parseParam(s string) (k string, v string, err error) {
 	if !ok {
 		return "", "", errors.New("msgauth: malformed authentication method and value")
 	}
-	return strings.ToLower(strings.TrimSpace(k)), strings.TrimSpace(v), nil
+	v, err = parseValue(strings.TrimSpace(v))
+	if err != nil {
+		return "", "", err
+	}
+	return strings.ToLower(strings.TrimSpace(k)), v, nil
+}
+
+// splitAuthres splits an Authentication-Results payload at semicolons while
+// preserving semicolons contained in quoted strings or comments.
+func splitAuthres(s string) ([]string, error) {
+	var parts []string
+	start := 0
+	inQuote := false
+	escaped := false
+	commentDepth := 0
+
+	for i, ch := range s {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if inQuote {
+			switch ch {
+			case '\\':
+				escaped = true
+			case '"':
+				inQuote = false
+			}
+			continue
+		}
+		if commentDepth > 0 {
+			switch ch {
+			case '\\':
+				escaped = true
+			case '(':
+				commentDepth++
+			case ')':
+				commentDepth--
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inQuote = true
+		case '(':
+			commentDepth = 1
+		case ';':
+			parts = append(parts, s[start:i])
+			start = i + 1
+		}
+	}
+
+	if inQuote {
+		return nil, errors.New("msgauth: unterminated quoted string")
+	}
+	if commentDepth != 0 {
+		return nil, errors.New("msgauth: unterminated comment")
+	}
+	parts = append(parts, s[start:])
+	return parts, nil
+}
+
+// authresFields splits a result into whitespace-delimited fields, keeps
+// quoted strings intact, and removes RFC comments (including nested ones).
+func authresFields(s string) ([]string, error) {
+	var fields []string
+	var field strings.Builder
+	inQuote := false
+	escaped := false
+	commentDepth := 0
+
+	flush := func() {
+		if field.Len() == 0 {
+			return
+		}
+		fields = append(fields, field.String())
+		field.Reset()
+	}
+
+	for _, ch := range s {
+		if escaped {
+			if commentDepth == 0 {
+				field.WriteRune(ch)
+			}
+			escaped = false
+			continue
+		}
+		if inQuote {
+			field.WriteRune(ch)
+			switch ch {
+			case '\\':
+				escaped = true
+			case '"':
+				inQuote = false
+			}
+			continue
+		}
+		if commentDepth > 0 {
+			switch ch {
+			case '\\':
+				escaped = true
+			case '(':
+				commentDepth++
+			case ')':
+				commentDepth--
+			}
+			continue
+		}
+
+		switch {
+		case ch == '"':
+			inQuote = true
+			field.WriteRune(ch)
+		case ch == '(':
+			flush()
+			commentDepth = 1
+		case unicode.IsSpace(ch):
+			flush()
+		default:
+			field.WriteRune(ch)
+		}
+	}
+
+	if inQuote {
+		return nil, errors.New("msgauth: unterminated quoted string")
+	}
+	if commentDepth != 0 {
+		return nil, errors.New("msgauth: unterminated comment")
+	}
+	flush()
+	return fields, nil
+}
+
+func parseValue(s string) (string, error) {
+	if !strings.HasPrefix(s, `"`) {
+		return s, nil
+	}
+	if len(s) < 2 || !strings.HasSuffix(s, `"`) {
+		return "", errors.New("msgauth: unterminated quoted string")
+	}
+
+	var value strings.Builder
+	escaped := false
+	for _, ch := range s[1 : len(s)-1] {
+		if escaped {
+			value.WriteRune(ch)
+			escaped = false
+			continue
+		}
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+		value.WriteRune(ch)
+	}
+	if escaped {
+		return "", errors.New("msgauth: unterminated quoted pair")
+	}
+	return value.String(), nil
 }

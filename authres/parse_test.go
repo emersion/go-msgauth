@@ -32,6 +32,20 @@ var parseTests = []msgauthTest{
 			&AuthResult{Value: ResultPass, Auth: "sender@example.com"},
 		},
 	},
+	{
+		value:      "example.com; arc=pass header.oldest-pass=0",
+		identifier: "example.com",
+		results: []Result{
+			&ARCResult{Value: ResultPass, OldestPass: 0},
+		},
+	},
+	{
+		value:      `example.com; dkim=fail (bad; signature) reason="body was modified; retry" header.d=example.org`,
+		identifier: "example.com",
+		results: []Result{
+			&DKIMResult{Value: ResultFail, Reason: "body was modified; retry", Domain: "example.org"},
+		},
+	},
 }
 
 func TestParse(t *testing.T) {
@@ -44,7 +58,7 @@ func TestParse(t *testing.T) {
 		} else if len(test.results) != len(results) {
 			t.Errorf("Expected number of results to be %v, but got %v", len(test.results), len(results))
 		} else {
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				if !reflect.DeepEqual(test.results[i], results[i]) {
 					t.Errorf("Expected result to be \n%v\n but got \n%v", test.results[i], results[i])
 				}
