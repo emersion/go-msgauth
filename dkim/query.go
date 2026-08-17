@@ -98,7 +98,7 @@ func queryDNSTXT(domain, selector string, txtLookup txtLookupFunc) (*queryResult
 }
 
 func parsePublicKey(s string) (*queryResult, error) {
-	params, err := parseHeaderParams(s)
+	params, err := ParseHeaderParams(s)
 	if err != nil {
 		return nil, permFailError("key record error: " + err.Error())
 	}

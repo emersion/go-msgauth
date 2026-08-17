@@ -1,6 +1,7 @@
 package dkim
 
 import (
+	"fmt"
 	"io"
 	"strings"
 )
@@ -10,7 +11,7 @@ type Canonicalization string
 
 const (
 	CanonicalizationSimple  Canonicalization = "simple"
-	CanonicalizationRelaxed                  = "relaxed"
+	CanonicalizationRelaxed Canonicalization = "relaxed"
 )
 
 type canonicalizer interface {
@@ -18,9 +19,31 @@ type canonicalizer interface {
 	CanonicalizeBody(w io.Writer) io.WriteCloser
 }
 
-var canonicalizers = map[Canonicalization]canonicalizer{
+var Canonicalizers = map[Canonicalization]canonicalizer{
 	CanonicalizationSimple:  new(simpleCanonicalizer),
 	CanonicalizationRelaxed: new(relaxedCanonicalizer),
+}
+
+// CanonicalizeHeader applies a DKIM header canonicalization algorithm.
+//
+// This helper is exported so protocols derived from DKIM, such as
+// ARC, can use exactly the same canonicalization implementation.
+func CanonicalizeHeader(c Canonicalization, field string) (string, error) {
+	canonicalizer, ok := Canonicalizers[c]
+	if !ok {
+		return "", fmt.Errorf("dkim: unknown header canonicalization %q", c)
+	}
+	return canonicalizer.CanonicalizeHeader(field), nil
+}
+
+// CanonicalizeBody returns a writer which applies a DKIM body
+// canonicalization algorithm. The caller must close the returned writer.
+func CanonicalizeBody(c Canonicalization, w io.Writer) (io.WriteCloser, error) {
+	canonicalizer, ok := Canonicalizers[c]
+	if !ok {
+		return nil, fmt.Errorf("dkim: unknown body canonicalization %q", c)
+	}
+	return canonicalizer.CanonicalizeBody(w), nil
 }
 
 // crlfFixer fixes any lone LF without a preceding CR.

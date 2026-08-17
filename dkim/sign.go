@@ -105,7 +105,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 	if headerCan == "" {
 		headerCan = CanonicalizationSimple
 	}
-	if _, ok := canonicalizers[headerCan]; !ok {
+	if _, ok := Canonicalizers[headerCan]; !ok {
 		return nil, fmt.Errorf("dkim: unknown header canonicalization %q", headerCan)
 	}
 
@@ -113,7 +113,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 	if bodyCan == "" {
 		bodyCan = CanonicalizationSimple
 	}
-	if _, ok := canonicalizers[bodyCan]; !ok {
+	if _, ok := Canonicalizers[bodyCan]; !ok {
 		return nil, fmt.Errorf("dkim: unknown body canonicalization %q", bodyCan)
 	}
 
@@ -172,7 +172,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 
 		// Read header
 		br := bufio.NewReader(pr)
-		h, err := readHeader(br)
+		h, err := ReadHeader(br)
 		if err != nil {
 			closeReadWithError(err)
 			return
@@ -180,7 +180,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 
 		// Hash body
 		hasher := hash.New()
-		can := canonicalizers[bodyCan].CanonicalizeBody(hasher)
+		can := Canonicalizers[bodyCan].CanonicalizeBody(hasher)
 		if _, err := io.Copy(can, br); err != nil {
 			closeReadWithError(err)
 			return
@@ -208,11 +208,11 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			headerKeys = options.HeaderKeys
 		} else {
 			for _, kv := range h {
-				k, _ := parseHeaderField(kv)
+				k, _ := ParseHeaderField(kv)
 				headerKeys = append(headerKeys, k)
 			}
 		}
-		params["h"] = formatTagList(headerKeys)
+		params["h"] = FormatTagList(headerKeys)
 
 		if options.Identifier != "" {
 			params["i"] = options.Identifier
@@ -223,7 +223,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			for i, method := range options.QueryMethods {
 				methods[i] = string(method)
 			}
-			params["q"] = formatTagList(methods)
+			params["q"] = FormatTagList(methods)
 		}
 
 		if !options.Expiration.IsZero() {
@@ -232,7 +232,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 
 		// Hash and sign headers
 		hasher.Reset()
-		picker := newHeaderPicker(h)
+		picker := NewHeaderPicker(h)
 		for _, k := range headerKeys {
 			kv := picker.Pick(k)
 			if kv == "" {
@@ -243,7 +243,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 				continue
 			}
 
-			kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+			kv = Canonicalizers[headerCan].CanonicalizeHeader(kv)
 			if _, err := io.WriteString(hasher, kv); err != nil {
 				closeReadWithError(err)
 				return
@@ -251,8 +251,8 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 
 		params["b"] = ""
-		sigField := formatSignature(params)
-		sigField = canonicalizers[headerCan].CanonicalizeHeader(sigField)
+		sigField := FormatSignature(params)
+		sigField = Canonicalizers[headerCan].CanonicalizeHeader(sigField)
 		sigField = strings.TrimRight(sigField, crlf)
 		if _, err := io.WriteString(hasher, sigField); err != nil {
 			closeReadWithError(err)
@@ -302,7 +302,7 @@ func (s *Signer) Signature() string {
 	if s.sigParams == nil {
 		panic("dkim: Signer.Signature must only be called after a succesful Signer.Close")
 	}
-	return formatSignature(s.sigParams)
+	return FormatSignature(s.sigParams)
 }
 
 // Sign signs a message. It reads it from r and writes the signed version to w.
@@ -332,12 +332,12 @@ func Sign(w io.Writer, r io.Reader, options *SignOptions) error {
 	return err
 }
 
-func formatSignature(params map[string]string) string {
-	sig := formatHeaderParams(headerFieldName, params)
+func FormatSignature(params map[string]string) string {
+	sig := FormatHeaderParams(headerFieldName, params)
 	return sig
 }
 
-func formatTagList(l []string) string {
+func FormatTagList(l []string) string {
 	return strings.Join(l, ":")
 }
 

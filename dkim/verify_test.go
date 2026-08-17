@@ -11,7 +11,7 @@ import (
 )
 
 func newMailStringReader(s string) io.Reader {
-	return strings.NewReader(strings.Replace(s, "\n", "\r\n", -1))
+	return strings.NewReader(strings.ReplaceAll(s, "\n", "\r\n"))
 }
 
 const unsignedMailString = `From: Joe SixPack <joe@football.example.com>

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -114,7 +113,7 @@ func Verify(r io.Reader) ([]*Verification, error) {
 func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, error) {
 	// Read header
 	bufr := bufio.NewReader(r)
-	h, err := readHeader(bufr)
+	h, err := ReadHeader(bufr)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +121,7 @@ func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, er
 	// Scan header fields for signatures
 	var signatures []*signature
 	for i, kv := range h {
-		k, v := parseHeaderField(kv)
+		k, v := ParseHeaderField(kv)
 		if strings.EqualFold(k, headerFieldName) {
 			signatures = append(signatures, &signature{i, v})
 		}
@@ -156,7 +155,7 @@ func VerifyWithOptions(r io.Reader, options *VerifyOptions) ([]*Verification, er
 	return verifs, nil
 }
 
-func parallelVerify(r io.Reader, h header, signatures []*signature, options *VerifyOptions) ([]*Verification, error) {
+func parallelVerify(r io.Reader, h Header, signatures []*signature, options *VerifyOptions) ([]*Verification, error) {
 	pipeWriters := make([]*io.PipeWriter, len(signatures))
 	// We can't pass pipeWriter to io.MultiWriter directly,
 	// we need a slice of io.Writer, but we also need *io.PipeWriter
@@ -179,7 +178,7 @@ func parallelVerify(r io.Reader, h header, signatures []*signature, options *Ver
 
 			// Make sure we consume the whole reader, otherwise io.Copy on
 			// other side can block forever.
-			io.Copy(ioutil.Discard, pr)
+			io.Copy(io.Discard, pr)
 
 			v.Err = err
 			chans[i] <- v
@@ -209,10 +208,10 @@ func parallelVerify(r io.Reader, h header, signatures []*signature, options *Ver
 	return verifications, nil
 }
 
-func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOptions) (*Verification, error) {
+func verify(h Header, r io.Reader, sigField, sigValue string, options *VerifyOptions) (*Verification, error) {
 	verif := new(Verification)
 
-	params, err := parseHeaderParams(sigValue)
+	params, err := ParseHeaderParams(sigValue)
 	if err != nil {
 		return verif, permFailError("malformed signature tags: " + err.Error())
 	}
@@ -342,10 +341,10 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	}
 
 	headerCan, bodyCan := parseCanonicalization(params["c"])
-	if _, ok := canonicalizers[headerCan]; !ok {
+	if _, ok := Canonicalizers[headerCan]; !ok {
 		return verif, permFailError("unsupported header canonicalization algorithm")
 	}
-	if _, ok := canonicalizers[bodyCan]; !ok {
+	if _, ok := Canonicalizers[bodyCan]; !ok {
 		return verif, permFailError("unsupported body canonicalization algorithm")
 	}
 
@@ -368,7 +367,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 
 	// Check body hash
 	hasher := hash.New()
-	wc := canonicalizers[bodyCan].CanonicalizeBody(hasher)
+	wc := Canonicalizers[bodyCan].CanonicalizeBody(hasher)
 	if _, err := io.Copy(wc, r); err != nil {
 		return verif, err
 	}
@@ -381,7 +380,7 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 
 	// Compute data hash
 	hasher.Reset()
-	picker := newHeaderPicker(h)
+	picker := NewHeaderPicker(h)
 	for _, key := range headerKeys {
 		kv := picker.Pick(key)
 		if kv == "" {
@@ -391,13 +390,13 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 			continue
 		}
 
-		kv = canonicalizers[headerCan].CanonicalizeHeader(kv)
+		kv = Canonicalizers[headerCan].CanonicalizeHeader(kv)
 		if _, err := hasher.Write([]byte(kv)); err != nil {
 			return verif, err
 		}
 	}
-	canSigField := removeSignature(sigField)
-	canSigField = canonicalizers[headerCan].CanonicalizeHeader(canSigField)
+	canSigField := RemoveSignature(sigField)
+	canSigField = Canonicalizers[headerCan].CanonicalizeHeader(canSigField)
 	canSigField = strings.TrimRight(canSigField, "\r\n")
 	if _, err := hasher.Write([]byte(canSigField)); err != nil {
 		return verif, err
@@ -457,6 +456,9 @@ func stripWhitespace(s string) string {
 
 var sigRegex = regexp.MustCompile(`(b\s*=)[^;]+`)
 
-func removeSignature(s string) string {
+// RemoveSignature removes the value of the b tag from a DKIM-derived
+// signature header field while preserving the tag itself. Protocols such as
+// ARC use this when calculating the digest covered by a signature.
+func RemoveSignature(s string) string {
 	return sigRegex.ReplaceAllString(s, "$1")
 }

@@ -7,18 +7,19 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
+	"slices"
 	"sort"
 	"strings"
 )
 
 const crlf = "\r\n"
 
-type header []string
+type Header []string
 
-func readHeader(r *bufio.Reader) (header, error) {
+func ReadHeader(r *bufio.Reader) (Header, error) {
 	tr := textproto.NewReader(r)
 
-	var h header
+	var h Header
 	for {
 		l, err := tr.ReadLine()
 		if err != nil {
@@ -38,7 +39,7 @@ func readHeader(r *bufio.Reader) (header, error) {
 	return h, nil
 }
 
-func writeHeader(w io.Writer, h header) error {
+func WriteHeader(w io.Writer, h Header) error {
 	for _, kv := range h {
 		if _, err := w.Write([]byte(kv)); err != nil {
 			return err
@@ -66,12 +67,12 @@ func foldHeaderField(kv string) string {
 	return fold.String() + crlf
 }
 
-func parseHeaderField(s string) (string, string) {
+func ParseHeaderField(s string) (string, string) {
 	key, value, _ := strings.Cut(s, ":")
 	return strings.TrimSpace(key), strings.TrimSpace(value)
 }
 
-func parseHeaderParams(s string) (map[string]string, error) {
+func ParseHeaderParams(s string) (map[string]string, error) {
 	pairs := strings.Split(s, ";")
 	params := make(map[string]string)
 	for _, s := range pairs {
@@ -93,32 +94,56 @@ func parseHeaderParams(s string) (map[string]string, error) {
 	return params, nil
 }
 
-func formatHeaderParams(headerFieldName string, params map[string]string) string {
+// FormatHeaderParams formats a parameterized header field with tags sorted by
+// name. The b tag, when present, is always emitted last and folded.
+func FormatHeaderParams(headerFieldName string, params map[string]string) string {
 	keys, bvalue, bfound := sortParams(params)
+	return formatHeaderParams(headerFieldName, params, keys, bvalue, bfound)
+}
 
-	s := headerFieldName + ":"
+// FormatHeaderParamsWithFirst formats a parameterized header field like
+// FormatHeaderParams, but emits first before the other sorted tags. This is
+// useful for DKIM-derived protocols whose grammar requires a leading tag.
+func FormatHeaderParamsWithFirst(headerFieldName string, params map[string]string, first string) string {
+	keys, bvalue, bfound := sortParams(params)
+	for i, key := range keys {
+		if key == first {
+			copy(keys[1:i+1], keys[:i])
+			keys[0] = first
+			break
+		}
+	}
+	return formatHeaderParams(headerFieldName, params, keys, bvalue, bfound)
+}
+
+func formatHeaderParams(headerFieldName string, params map[string]string, keys []string, bvalue string, bfound bool) string {
+	var s strings.Builder
+	s.WriteString(headerFieldName)
+	s.WriteString(":")
 	var line string
 
 	for _, k := range keys {
 		v := params[k]
 		nextLength := 3 + len(line) + len(v) + len(k)
 		if nextLength > 75 {
-			s += line + crlf
+			s.WriteString(line)
+			s.WriteString(crlf)
 			line = ""
 		}
 		line = fmt.Sprintf("%v %v=%v;", line, k, v)
 	}
 
 	if line != "" {
-		s += line
+		s.WriteString(line)
 	}
 
 	if bfound {
-		bfiled := foldHeaderField(" b=" + bvalue)
-		s += crlf + bfiled
+		bField := foldHeaderField(" b=" + bvalue)
+		s.WriteString(crlf)
+		s.WriteString(bField)
 	}
 
-	return s
+	return s.String()
 }
 
 func sortParams(params map[string]string) ([]string, string, bool) {
@@ -138,11 +163,11 @@ func sortParams(params map[string]string) ([]string, string, bool) {
 }
 
 type headerPicker struct {
-	h      header
+	h      Header
 	picked map[string]int
 }
 
-func newHeaderPicker(h header) *headerPicker {
+func NewHeaderPicker(h Header) *headerPicker {
 	return &headerPicker{
 		h:      h,
 		picked: make(map[string]int),
@@ -153,9 +178,8 @@ func (p *headerPicker) Pick(key string) string {
 	key = strings.ToLower(key)
 
 	at := p.picked[key]
-	for i := len(p.h) - 1; i >= 0; i-- {
-		kv := p.h[i]
-		k, _ := parseHeaderField(kv)
+	for _, kv := range slices.Backward(p.h) {
+		k, _ := ParseHeaderField(kv)
 
 		if !strings.EqualFold(k, key) {
 			continue
