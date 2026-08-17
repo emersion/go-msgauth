@@ -2,3 +2,7 @@
 //
 // Authentication-Results header fields are standardized in RFC 7601.
 package authres
+
+const (
+	AuthenticationResultsHeader = "Authentication-Results"
+)

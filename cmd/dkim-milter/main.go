@@ -194,7 +194,7 @@ func (s *session) Headers(h textproto.MIMEHeader, m *milter.Modifier) (milter.Re
 	}
 
 	// Delete any existing Authentication-Results header field with our identity
-	fields := h["Authentication-Results"]
+	fields := h[authres.AuthenticationResultsHeader]
 	for i, field := range fields {
 		if shouldDeleteAuthRes(field) {
 			s.authResDelete = append(s.authResDelete, i)
@@ -259,7 +259,7 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 	}
 
 	for _, index := range s.authResDelete {
-		if err := m.ChangeHeader(index, "Authentication-Results", ""); err != nil {
+		if err := m.ChangeHeader(index, authres.AuthenticationResultsHeader, ""); err != nil {
 			return nil, err
 		}
 	}
@@ -333,7 +333,7 @@ func (s *session) Body(m *milter.Modifier) (milter.Response, error) {
 
 	if len(s.verifs) > 0 || s.signer == nil {
 		v := authres.Format(identity, results)
-		if err := m.InsertHeader(0, "Authentication-Results", v); err != nil {
+		if err := m.InsertHeader(0, authres.AuthenticationResultsHeader, v); err != nil {
 			return nil, err
 		}
 	}
