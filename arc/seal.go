@@ -72,6 +72,11 @@ type SealOptions struct {
 	// sealer then uses "none". Extending an existing chain requires an explicit
 	// "pass" or "fail" because sealing does not itself validate signatures.
 	ChainValidationStatus ChainValidation
+	// DontCareChainValidation selects "none" for a message without an ARC chain
+	// and "pass" when extending an existing chain. It must not be combined with
+	// an explicit ChainValidationStatus. This option will be removed once ARC
+	// validation is supported.
+	DontCareChainValidation bool
 }
 
 // Sealer generates an ARC set.
@@ -120,7 +125,15 @@ func NewSealer(options *SealOptions) (*Sealer, error) {
 			return
 		}
 
-		instance, cv, err := nextARCSet(chain, options.ChainValidationStatus)
+		chainValidationStatus := options.ChainValidationStatus
+		if options.DontCareChainValidation {
+			chainValidationStatus = ChainValidationPass
+			if chain.getLatestSet() == nil {
+				chainValidationStatus = ChainValidationNone
+			}
+		}
+
+		instance, cv, err := nextARCSet(chain, chainValidationStatus)
 		if err != nil {
 			finish(err)
 			return
@@ -169,6 +182,7 @@ func NewSealer(options *SealOptions) (*Sealer, error) {
 			return
 		}
 
+		// timestamp is used for t= value in signatures
 		timestamp := now()
 
 		// Create ARC-Message-Signature
@@ -325,6 +339,9 @@ func validateSealOptions(input *SealOptions) (*SealOptions, error) {
 	case "", ChainValidationNone, ChainValidationPass, ChainValidationFail:
 	default:
 		return nil, fmt.Errorf("arc: invalid chain validation status %q", options.ChainValidationStatus)
+	}
+	if options.DontCareChainValidation && options.ChainValidationStatus != "" {
+		return nil, fmt.Errorf("arc: chain validation status and dont-care option are mutually exclusive")
 	}
 
 	return &options, nil

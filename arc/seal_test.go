@@ -76,6 +76,10 @@ func testPrivateKey(t *testing.T) *rsa.PrivateKey {
 }
 
 func sealMessage(t *testing.T, message string, key *rsa.PrivateKey, cv ChainValidation, timestamp int64) (string, *arcSet, error) {
+	return sealMessageWithChainValidation(t, message, key, cv, false, timestamp)
+}
+
+func sealMessageWithChainValidation(t *testing.T, message string, key *rsa.PrivateKey, cv ChainValidation, dontCare bool, timestamp int64) (string, *arcSet, error) {
 	t.Helper()
 	previousNow := now
 	now = func() time.Time { return time.Unix(timestamp, 0) }
@@ -96,7 +100,8 @@ func sealMessage(t *testing.T, message string, key *rsa.PrivateKey, cv ChainVali
 			"to",
 			"subject",
 		},
-		ChainValidationStatus: cv,
+		ChainValidationStatus:   cv,
+		DontCareChainValidation: dontCare,
 	})
 	if err != nil {
 		return "", nil, err
@@ -291,6 +296,27 @@ func TestExistingSealHeaders(t *testing.T) {
 			t.Fatalf("Seal() error = %v, want terminal cv=fail error", err)
 		}
 	})
+}
+
+func TestSealDontCareChainValidation(t *testing.T) {
+	key := testPrivateKey(t)
+
+	firstMessage, first, err := sealMessageWithChainValidation(t, baseMessage, key, "", true, 12345)
+	if err != nil {
+		t.Fatalf("first Seal() failed: %v", err)
+	}
+	assertInstance(t, first, 1, ChainValidationNone)
+
+	_, second, err := sealMessageWithChainValidation(t, firstMessage, key, "", true, 12346)
+	if err != nil {
+		t.Fatalf("second Seal() failed: %v", err)
+	}
+	assertInstance(t, second, 2, ChainValidationPass)
+
+	_, _, err = sealMessageWithChainValidation(t, baseMessage, key, ChainValidationPass, true, 12347)
+	if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Fatalf("conflicting chain validation options error = %v, want mutually exclusive error", err)
+	}
 }
 
 func assertInstance(t *testing.T, set *arcSet, wantInstance int, wantCV ChainValidation) {
