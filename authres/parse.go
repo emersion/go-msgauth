@@ -314,6 +314,43 @@ func Parse(v string) (identifier string, results []Result, err error) {
 	return
 }
 
+// ParseWithDefaultAuthservID parses an Authentication-Results header field and
+// uses defaultAuthservID when the payload starts with an authentication method
+// instead of an authserv-id. Standards-compliant payloads are parsed exactly as
+// Parse would parse them.
+//
+// An authserv-id identifies the trust domain that produced the results. Callers
+// must only provide a default for header fields received from a trusted source;
+// otherwise, an untrusted sender could inject results that appear to be local.
+func ParseWithDefaultAuthservID(v, defaultAuthservID string) (identifier string, results []Result, err error) {
+	parts, err := splitAuthres(v)
+	if err != nil {
+		return "", nil, err
+	}
+
+	fields, err := authresFields(parts[0])
+	if err != nil {
+		return "", nil, err
+	}
+	if len(fields) == 0 || !looksLikeMethodSpec(fields[0]) {
+		return Parse(v)
+	}
+	if defaultAuthservID == "" {
+		return "", nil, errors.New("msgauth: missing default authentication service identifier")
+	}
+
+	return Parse(defaultAuthservID + "; " + v)
+}
+
+func looksLikeMethodSpec(s string) bool {
+	// A quoted string can be a valid authserv-id and may contain an equals sign.
+	if strings.HasPrefix(s, `"`) {
+		return false
+	}
+	method, result, ok := strings.Cut(s, "=")
+	return ok && method != "" && result != ""
+}
+
 func parseResult(s string) (Result, error) {
 	parts, err := authresFields(s)
 	if err != nil {

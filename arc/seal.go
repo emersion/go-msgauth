@@ -46,7 +46,9 @@ type SealOptions struct {
 	Hash crypto.Hash
 
 	// AuthservID identifies the authentication service that produced the AAR.
-	// It defaults to Domain.
+	// It defaults to Domain. When automatically collecting Authentication-Results,
+	// it is also used for payloads that omit their authserv-id. The caller is
+	// responsible for ensuring that such header fields came from a trusted source.
 	AuthservID string
 	// AuthenticationResults contains the results to place in the AAR. If nil,
 	// matching Authentication-Results fields are collected from the message.

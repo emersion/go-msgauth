@@ -17,7 +17,7 @@ func collectAuthenticationResults(headers dkim.Header, authservID string) ([]aut
 			continue
 		}
 
-		identifier, results, err := authres.Parse(value)
+		identifier, results, err := authres.ParseWithDefaultAuthservID(value, authservID)
 		if err != nil {
 			return nil, fmt.Errorf("arc: malformed Authentication-Results: %w", err)
 		}

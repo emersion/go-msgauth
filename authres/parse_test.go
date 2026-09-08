@@ -66,3 +66,87 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
+
+func TestParseWithDefaultAuthservID(t *testing.T) {
+	tests := []struct {
+		name              string
+		value             string
+		defaultAuthservID string
+		identifier        string
+		results           []Result
+		wantError         bool
+	}{
+		{
+			name:              "regular header",
+			value:             "mx.example.org; spf=pass smtp.mailfrom=example.org",
+			defaultAuthservID: "default.example.org",
+			identifier:        "mx.example.org",
+			results: []Result{
+				&SPFResult{Value: ResultPass, From: "example.org"},
+			},
+		},
+		{
+			name: "missing authserv-id",
+			value: "spf=pass (sender IP is 192.0.2.1) smtp.mailfrom=example.org; " +
+				"dkim=pass (signature was verified) header.d=example.org; " +
+				"dmarc=pass action=none header.from=example.org; " +
+				"compauth=pass reason=100",
+			defaultAuthservID: "default.example.org",
+			identifier:        "default.example.org",
+			results: []Result{
+				&SPFResult{Value: ResultPass, From: "example.org"},
+				&DKIMResult{Value: ResultPass, Domain: "example.org"},
+				&DMARCResult{Value: ResultPass, From: "example.org"},
+				&GenericResult{
+					Method: "compauth",
+					Value:  ResultPass,
+					Params: map[string]string{"reason": "100"},
+				},
+			},
+		},
+		{
+			name:              "single result without authserv-id",
+			value:             "dkim=pass header.d=example.org",
+			defaultAuthservID: "default.example.org",
+			identifier:        "default.example.org",
+			results: []Result{
+				&DKIMResult{Value: ResultPass, Domain: "example.org"},
+			},
+		},
+		{
+			name:              "quoted authserv-id containing equals sign",
+			value:             `"mx=example"; spf=pass smtp.mailfrom=example.org`,
+			defaultAuthservID: "default.example.org",
+			identifier:        "mx=example",
+			results: []Result{
+				&SPFResult{Value: ResultPass, From: "example.org"},
+			},
+		},
+		{
+			name:      "missing authserv-id and default",
+			value:     "spf=pass smtp.mailfrom=example.org",
+			wantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			identifier, results, err := ParseWithDefaultAuthservID(test.value, test.defaultAuthservID)
+			if test.wantError {
+				if err == nil {
+					t.Fatal("expected an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseWithDefaultAuthservID() failed: %v", err)
+			}
+			if identifier != test.identifier {
+				t.Errorf("identifier = %q, want %q", identifier, test.identifier)
+			}
+			if !reflect.DeepEqual(results, test.results) {
+				t.Errorf("results = %#v, want %#v", results, test.results)
+			}
+		})
+	}
+}

@@ -378,3 +378,31 @@ func TestAuthenticationResultsMerging(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthenticationResultsWithoutAuthservID(t *testing.T) {
+	key := testPrivateKey(t)
+	messageTail := baseMessage[strings.Index(baseMessage, "MIME-Version:"):]
+	message := "Authentication-Results: spf=pass (sender IP is 192.0.2.1)\r\n" +
+		" smtp.mailfrom=example.org; dkim=pass (signature was verified)\r\n" +
+		" header.d=example.org; dmarc=pass action=none header.from=example.org;\r\n" +
+		" compauth=pass reason=100\r\n" +
+		messageTail
+
+	_, set, err := sealMessage(t, message, key, "", 12345)
+	if err != nil {
+		t.Fatalf("Seal() failed: %v", err)
+	}
+	if set.authservID != "lists.example.org" {
+		t.Errorf("AAR authserv-id = %q, want lists.example.org", set.authservID)
+	}
+	if len(set.authResults) != 4 {
+		t.Fatalf("AAR result count = %d, want 4", len(set.authResults))
+	}
+	if want := "ARC-Authentication-Results: i=1; lists.example.org;" +
+		" spf=pass smtp.mailfrom=example.org;" +
+		" dkim=pass header.d=example.org;" +
+		" dmarc=pass header.from=example.org;" +
+		" compauth=pass reason=100\r\n"; set.aar != want {
+		t.Errorf("AAR = %q, want %q", set.aar, want)
+	}
+}
