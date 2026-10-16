@@ -294,3 +294,54 @@ func TestVerify_tooManySignatures(t *testing.T) {
 		t.Fatalf("Expected %v verifications, got %v", options.MaxVerifications, len(verifs))
 	}
 }
+
+const bodyLengthMailString = `DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=example.org;
+ i=@example.org; l=54; q=dns/txt; s=brisbane; t=1792151918; h=from : to
+ : subject : date : message-id;
+ bh=2jUSOH9NhtVGCQWNr9BrIAPreKQjO6Sn7XIkfJVOzv8=;
+ b=TKMiDj8uYeDSnX0IpcGKegOZ5TzFxCQYgb6/TaFO78ZuD/1uYzBmC3hr4jARXBW3rbrh1
+ zNpPyuzZbeR+VNPj0fVP/gi5+/KeWbeyiJkriGTyiUYkK32GPClFdV3K24FXQwuELnIXjHu
+ GCGwCWI1Ac9n+w49rePJuVNcsk4iqQQ=
+From: Joe SixPack <joe@football.example.com>
+To: Suzie Q <suzie@shopping.example.net>
+Subject: Is dinner ready?
+Date: Fri, 11 Jul 2003 21:00:37 -0700 (PDT)
+Message-ID: <20030712040037.46341.5F8J@football.example.com>
+
+Hi.
+
+We lost the game. Are you hungry yet?
+
+Joe.
+`
+
+func TestVerify_bodyLength(t *testing.T) {
+	verifications, err := Verify(newMailStringReader(bodyLengthMailString))
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 1 {
+		t.Fatalf("Expected exactly one verification, got %v", len(verifications))
+	} else if verifications[0].Err == nil {
+		t.Errorf("Expected body length tag to fail verification by default")
+	}
+
+	options := VerifyOptions{IgnoreBodyLength: true}
+	verifications, err = VerifyWithOptions(newMailStringReader(bodyLengthMailString), &options)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 1 {
+		t.Fatalf("Expected exactly one verification, got %v", len(verifications))
+	} else if err := verifications[0].Err; err != nil {
+		t.Errorf("Expected valid signature with IgnoreBodyLength, got: %v", err)
+	}
+
+	appended := bodyLengthMailString + "\nUnsigned text appended after the signed body.\n"
+	verifications, err = VerifyWithOptions(newMailStringReader(appended), &options)
+	if err != nil {
+		t.Fatalf("Expected no error while verifying signature, got: %v", err)
+	} else if len(verifications) != 1 {
+		t.Fatalf("Expected exactly one verification, got %v", len(verifications))
+	} else if !isFail(verifications[0].Err) {
+		t.Errorf("Expected appended body to fail verification with IgnoreBodyLength, got: %v", verifications[0].Err)
+	}
+}

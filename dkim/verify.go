@@ -99,6 +99,11 @@ type VerifyOptions struct {
 	// signatures are verified, the rest are ignored and ErrTooManySignatures
 	// is returned. If zero, there is no maximum.
 	MaxVerifications int
+	// IgnoreBodyLength verifies signatures that have a body length tag ("l=")
+	// instead of failing them. The tag is ignored and the body hash is
+	// computed over the whole body, so a signature that does not cover the
+	// whole body still fails.
+	IgnoreBodyLength bool
 }
 
 // Verify checks if a message's signatures are valid. It returns one
@@ -350,8 +355,9 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 	}
 
 	// The body length "l" parameter is insecure, because it allows parts of
-	// the message body to not be signed. Reject messages which have it set.
-	if _, ok := params["l"]; ok {
+	// the message body to not be signed. Reject messages which have it set,
+	// unless the caller asks to ignore it and hash the whole body.
+	if _, ok := params["l"]; ok && (options == nil || !options.IgnoreBodyLength) {
 		// TODO: technically should be policyError
 		return verif, failError("message contains an insecure body length tag")
 	}
