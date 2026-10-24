@@ -64,6 +64,11 @@ type SignOptions struct {
 	// The expiration time. A zero value means no expiration.
 	Expiration time.Time
 
+	// The signature timestamp. A zero value uses the current time after
+	// hashing the body. Otherwise, this time is used for the t= tag and its
+	// Unix seconds must be in [0, 999999999999] (RFC 6376 section 3.5).
+	Timestamp time.Time
+
 	// A list of query methods used to retrieve the public key.
 	//
 	// If nil, it is implicitly defined as QueryMethodDNSTXT.
@@ -90,6 +95,9 @@ type Signer struct {
 func NewSigner(options *SignOptions) (*Signer, error) {
 	if options == nil {
 		return nil, fmt.Errorf("dkim: no options specified")
+	}
+	if !options.Timestamp.IsZero() && (options.Timestamp.Unix() < 0 || options.Timestamp.Unix() > 999999999999) {
+		return nil, fmt.Errorf("dkim: timestamp must be 1 to 12 decimal digits")
 	}
 	if options.Domain == "" {
 		return nil, fmt.Errorf("dkim: no domain specified")
@@ -154,6 +162,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 	}
 
+	timestamp := options.Timestamp
 	done := make(chan error, 1)
 	pr, pw := io.Pipe()
 
@@ -191,6 +200,10 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 		}
 		bodyHashed := hasher.Sum(nil)
 
+		signedAt := timestamp
+		if signedAt.IsZero() {
+			signedAt = now()
+		}
 		params := map[string]string{
 			"v":  "1",
 			"a":  keyAlgo + "-" + hashAlgo,
@@ -199,7 +212,7 @@ func NewSigner(options *SignOptions) (*Signer, error) {
 			"d":  options.Domain,
 			//"l": "", // TODO
 			"s": options.Selector,
-			"t": formatTime(now()),
+			"t": formatTime(signedAt),
 			//"z": "", // TODO
 		}
 
