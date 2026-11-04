@@ -140,8 +140,8 @@ func parsePublicKey(s string) (*queryResult, error) {
 		}
 		// RFC 8301 section 3.2: verifiers MUST NOT consider signatures using
 		// RSA keys of less than 1024 bits as valid signatures.
-		if rsaPub.Size()*8 < 1024 {
-			return nil, permFailError(fmt.Sprintf("key is too short: want 1024 bits, has %v bits", rsaPub.Size()*8))
+		if rsaPub.N.BitLen() < 1024 {
+			return nil, permFailError(fmt.Sprintf("key is too short: want 1024 bits, has %v bits", rsaPub.N.BitLen()))
 		}
 		res.Verifier = rsaVerifier{rsaPub}
 		res.KeyAlgo = "rsa"
