@@ -1,7 +1,12 @@
 package dkim
 
 import (
+	cryptorand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
+	"testing"
 )
 
 const dnsRawRSAPublicKey = "v=DKIM1; p=MIGJAoGBALVI635dLK4cJJAH3Lx6upo3X/L" +
@@ -33,4 +38,21 @@ func queryTest(domain, selector string, txtLookup txtLookupFunc) (*queryResult, 
 		return parsePublicKey(dnsEd25519PublicKey)
 	}
 	return nil, fmt.Errorf("unknown test DNS record %v", record)
+}
+
+func TestParsePublicKey_shortRSAKey(t *testing.T) {
+	key, err := rsa.GenerateKey(cryptorand.Reader, 1020)
+	if err != nil {
+		t.Fatal("Expected no error while generating RSA key, got:", err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatal("Expected no error while marshaling RSA key, got:", err)
+	}
+	record := "v=DKIM1; k=rsa; p=" + base64.StdEncoding.EncodeToString(der)
+
+	_, err = parsePublicKey(record)
+	if !IsPermFail(err) {
+		t.Errorf("Expected permfail for %v-bit RSA key, got: %v", key.N.BitLen(), err)
+	}
 }
