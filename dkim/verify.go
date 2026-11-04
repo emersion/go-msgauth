@@ -231,7 +231,9 @@ func verify(h header, r io.Reader, sigField, sigValue string, options *VerifyOpt
 
 	if i, ok := params["i"]; ok {
 		verif.Identifier = stripWhitespace(i)
-		if !strings.HasSuffix(verif.Identifier, "@"+verif.Domain) && !strings.HasSuffix(verif.Identifier, "."+verif.Domain) {
+		ident := strings.ToLower(verif.Identifier)
+		domain := strings.ToLower(verif.Domain)
+		if !strings.HasSuffix(ident, "@"+domain) && !strings.HasSuffix(ident, "."+domain) {
 			return verif, permFailError("domain mismatch")
 		}
 	} else {
