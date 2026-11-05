@@ -32,6 +32,19 @@ var parseTests = []msgauthTest{
 			&AuthResult{Value: ResultPass, Auth: "sender@example.com"},
 		},
 	},
+	{
+		value: `clochette.example.org; spf=fail
+			smtp.from=jqd@d1.example; dkim=fail (512-bit key)
+			header.i=@d1.example; dmarc=fail; arc=pass (as.2.gmail.example=pass,
+			ams.2.gmail.example=pass, as.1.lists.example.org=pass,
+			ams.1.lists.example.org=fail (message has been altered))`,
+		identifier: "clochette.example.org",
+		results: []Result{
+			&SPFResult{},
+			&DMARCResult{},
+			&ARCResult{},
+		},
+	},
 }
 
 func TestParse(t *testing.T) {
