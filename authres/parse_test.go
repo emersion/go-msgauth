@@ -52,3 +52,15 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAndFormat_authReason(t *testing.T) {
+	r := &AuthResult{
+		Value:  ResultPass,
+		Reason: "user verified",
+		Auth:   "joe",
+	}
+	_, params := r.format()
+	if params["reason"] != r.Reason {
+		t.Errorf("Expected formatted params to contain reason %q, got: %v", r.Reason, params)
+	}
+}
