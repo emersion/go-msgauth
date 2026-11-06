@@ -44,7 +44,10 @@ func (r *AuthResult) parse(value ResultValue, params map[string]string) error {
 }
 
 func (r *AuthResult) format() (ResultValue, map[string]string) {
-	return r.Value, map[string]string{"smtp.auth": r.Auth}
+	return r.Value, map[string]string{
+		"reason":    r.Reason,
+		"smtp.auth": r.Auth,
+	}
 }
 
 type DKIMResult struct {
